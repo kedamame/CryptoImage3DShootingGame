@@ -3,135 +3,138 @@ pragma solidity ^0.8.20;
 
 /**
  * @title CryptoShooterLeaderboard
- * @dev On-chain leaderboard for CryptoImageShootingGame
+ * @dev On-chain leaderboard for CryptoImage3DShootingGame
  */
 contract CryptoShooterLeaderboard {
     struct ScoreEntry {
         address player;
         uint256 score;
         uint256 timestamp;
+        string username;
     }
 
-    // Maximum number of top scores to keep
-    uint256 public constant MAX_TOP_SCORES = 100;
+    // Top 100 scores
+    uint256 public constant MAX_LEADERBOARD_SIZE = 100;
 
-    // All scores (for history)
-    ScoreEntry[] public allScores;
-
-    // Top scores (sorted descending)
-    ScoreEntry[] public topScores;
+    ScoreEntry[] public leaderboard;
 
     // Player's best score
     mapping(address => uint256) public playerBestScore;
 
     // Events
-    event ScoreSubmitted(address indexed player, uint256 score, uint256 timestamp);
+    event ScoreSubmitted(address indexed player, uint256 score, string username);
     event NewHighScore(address indexed player, uint256 score, uint256 rank);
 
     /**
-     * @dev Submit a new score
+     * @dev Submit a score to the leaderboard
      * @param score The player's score
+     * @param username The player's display name (Farcaster username or ENS)
      */
-    function submitScore(uint256 score) external {
-        require(score > 0, "Score must be positive");
+    function submitScore(uint256 score, string calldata username) external {
+        require(score > 0, "Score must be greater than 0");
 
-        ScoreEntry memory entry = ScoreEntry({
-            player: msg.sender,
-            score: score,
-            timestamp: block.timestamp
-        });
-
-        // Add to all scores
-        allScores.push(entry);
+        emit ScoreSubmitted(msg.sender, score, username);
 
         // Update player's best score
         if (score > playerBestScore[msg.sender]) {
             playerBestScore[msg.sender] = score;
         }
 
-        // Update top scores
-        _updateTopScores(entry);
-
-        emit ScoreSubmitted(msg.sender, score, block.timestamp);
+        // Try to add to leaderboard
+        _updateLeaderboard(msg.sender, score, username);
     }
 
     /**
-     * @dev Update the top scores list
+     * @dev Update the leaderboard with a new score
      */
-    function _updateTopScores(ScoreEntry memory entry) internal {
-        uint256 len = topScores.length;
+    function _updateLeaderboard(address player, uint256 score, string calldata username) internal {
+        ScoreEntry memory newEntry = ScoreEntry({
+            player: player,
+            score: score,
+            timestamp: block.timestamp,
+            username: username
+        });
 
-        // Find insertion position
-        uint256 insertPos = len;
-        for (uint256 i = 0; i < len; i++) {
-            if (entry.score > topScores[i].score) {
-                insertPos = i;
-                break;
+        // If leaderboard is not full, just add and sort
+        if (leaderboard.length < MAX_LEADERBOARD_SIZE) {
+            leaderboard.push(newEntry);
+            _sortLeaderboard();
+
+            uint256 rank = _findRank(player, score);
+            if (rank <= MAX_LEADERBOARD_SIZE) {
+                emit NewHighScore(player, score, rank);
             }
-        }
-
-        // If score doesn't make top list and list is full, return
-        if (insertPos >= MAX_TOP_SCORES) {
             return;
         }
 
-        // Insert the new score
-        if (len < MAX_TOP_SCORES) {
-            topScores.push(entry);
-            len++;
-        }
+        // Check if score is higher than the lowest score
+        if (score > leaderboard[leaderboard.length - 1].score) {
+            leaderboard[leaderboard.length - 1] = newEntry;
+            _sortLeaderboard();
 
-        // Shift scores down
-        for (uint256 i = len - 1; i > insertPos; i--) {
-            topScores[i] = topScores[i - 1];
+            uint256 rank = _findRank(player, score);
+            emit NewHighScore(player, score, rank);
         }
-        topScores[insertPos] = entry;
-
-        emit NewHighScore(entry.player, entry.score, insertPos + 1);
     }
 
     /**
-     * @dev Get top N scores
+     * @dev Simple bubble sort for the leaderboard (descending order)
+     */
+    function _sortLeaderboard() internal {
+        uint256 n = leaderboard.length;
+        for (uint256 i = 0; i < n - 1; i++) {
+            for (uint256 j = 0; j < n - i - 1; j++) {
+                if (leaderboard[j].score < leaderboard[j + 1].score) {
+                    ScoreEntry memory temp = leaderboard[j];
+                    leaderboard[j] = leaderboard[j + 1];
+                    leaderboard[j + 1] = temp;
+                }
+            }
+        }
+    }
+
+    /**
+     * @dev Find the rank of a player's score
+     */
+    function _findRank(address player, uint256 score) internal view returns (uint256) {
+        for (uint256 i = 0; i < leaderboard.length; i++) {
+            if (leaderboard[i].player == player && leaderboard[i].score == score) {
+                return i + 1;
+            }
+        }
+        return MAX_LEADERBOARD_SIZE + 1;
+    }
+
+    /**
+     * @dev Get the top N scores
      */
     function getTopScores(uint256 count) external view returns (ScoreEntry[] memory) {
-        uint256 len = topScores.length;
-        if (count > len) {
-            count = len;
+        uint256 resultCount = count < leaderboard.length ? count : leaderboard.length;
+        ScoreEntry[] memory result = new ScoreEntry[](resultCount);
+
+        for (uint256 i = 0; i < resultCount; i++) {
+            result[i] = leaderboard[i];
         }
 
-        ScoreEntry[] memory result = new ScoreEntry[](count);
-        for (uint256 i = 0; i < count; i++) {
-            result[i] = topScores[i];
-        }
         return result;
     }
 
     /**
-     * @dev Get player's rank (1-indexed, 0 if not in top)
+     * @dev Get the total number of entries in the leaderboard
+     */
+    function getLeaderboardSize() external view returns (uint256) {
+        return leaderboard.length;
+    }
+
+    /**
+     * @dev Get a player's rank (returns 0 if not in leaderboard)
      */
     function getPlayerRank(address player) external view returns (uint256) {
-        uint256 bestScore = playerBestScore[player];
-        if (bestScore == 0) return 0;
-
-        for (uint256 i = 0; i < topScores.length; i++) {
-            if (topScores[i].player == player && topScores[i].score == bestScore) {
+        for (uint256 i = 0; i < leaderboard.length; i++) {
+            if (leaderboard[i].player == player) {
                 return i + 1;
             }
         }
         return 0;
-    }
-
-    /**
-     * @dev Get total number of scores submitted
-     */
-    function getTotalScoresCount() external view returns (uint256) {
-        return allScores.length;
-    }
-
-    /**
-     * @dev Get top scores count
-     */
-    function getTopScoresCount() external view returns (uint256) {
-        return topScores.length;
     }
 }

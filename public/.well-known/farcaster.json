@@ -1,19 +1,19 @@
 {
   "accountAssociation": {
-    "header": "REPLACE_WITH_HEADER",
-    "payload": "REPLACE_WITH_PAYLOAD",
-    "signature": "REPLACE_WITH_SIGNATURE"
+    "header": "BASE64_ENCODED_HEADER",
+    "payload": "BASE64_ENCODED_PAYLOAD",
+    "signature": "SIGNATURE"
   },
   "miniapp": {
     "version": "1",
     "name": "CryptoShooter",
-    "iconUrl": "https://YOUR_DOMAIN/icon.png",
+    "iconUrl": "https://YOUR_DOMAIN/icon.svg",
     "homeUrl": "https://YOUR_DOMAIN",
-    "splashImageUrl": "https://YOUR_DOMAIN/splash.png",
-    "splashBackgroundColor": "#1A1A2E",
+    "splashImageUrl": "https://YOUR_DOMAIN/splash.svg",
+    "splashBackgroundColor": "#0F0F1A",
     "webhookUrl": "https://YOUR_DOMAIN/api/webhook",
-    "subtitle": "Shoot Your Tokens!",
-    "description": "A fun 2.5D shooting game where your wallet tokens and NFTs become enemies! Connect your wallet and battle against your own crypto assets.",
-    "primaryCategory": "entertainment"
+    "subtitle": "3D Shooting Game",
+    "description": "A 3D shooting game where your wallet assets become enemies! Collect power-ups, avoid obstacles, and compete for the highest score on the on-chain leaderboard.",
+    "primaryCategory": "games"
   }
 }

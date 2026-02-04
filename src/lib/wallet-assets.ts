@@ -1,4 +1,4 @@
-import { createPublicClient, http, formatUnits } from 'viem';
+import { createPublicClient, http, formatUnits, type Address } from 'viem';
 import { base } from 'viem/chains';
 
 const publicClient = createPublicClient({
@@ -6,19 +6,66 @@ const publicClient = createPublicClient({
   transport: http(),
 });
 
-// ERC-20 ABI for balanceOf
-const erc20Abi = [
+export interface TokenAsset {
+  type: 'token';
+  address: string;
+  symbol: string;
+  name: string;
+  balance: string;
+  decimals: number;
+  imageUrl: string | null;
+}
+
+export interface NFTAsset {
+  type: 'nft';
+  contractAddress: string;
+  tokenId: string;
+  name: string;
+  imageUrl: string | null;
+  collectionName: string;
+}
+
+export type WalletAsset = TokenAsset | NFTAsset;
+
+// Popular Base tokens with their logos
+const KNOWN_TOKENS: Record<string, { symbol: string; name: string; decimals: number; logo: string }> = {
+  '0x4200000000000000000000000000000000000006': {
+    symbol: 'WETH',
+    name: 'Wrapped Ether',
+    decimals: 18,
+    logo: 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
+  },
+  '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913': {
+    symbol: 'USDC',
+    name: 'USD Coin',
+    decimals: 6,
+    logo: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
+  },
+  '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb': {
+    symbol: 'DAI',
+    name: 'Dai Stablecoin',
+    decimals: 18,
+    logo: 'https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png',
+  },
+  '0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22': {
+    symbol: 'cbETH',
+    name: 'Coinbase Wrapped Staked ETH',
+    decimals: 18,
+    logo: 'https://assets.coingecko.com/coins/images/27008/small/cbeth.png',
+  },
+  '0xd9aAEc86B65D86f6A7B5B1b0c42FFA531710b6CA': {
+    symbol: 'USDbC',
+    name: 'USD Base Coin',
+    decimals: 6,
+    logo: 'https://assets.coingecko.com/coins/images/31164/small/baseusdc.png',
+  },
+};
+
+const ERC20_ABI = [
   {
     inputs: [{ name: 'account', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [],
-    name: 'decimals',
-    outputs: [{ name: '', type: 'uint8' }],
     stateMutability: 'view',
     type: 'function',
   },
@@ -29,238 +76,150 @@ const erc20Abi = [
     stateMutability: 'view',
     type: 'function',
   },
-] as const;
-
-// ERC-721 ABI
-const erc721Abi = [
   {
-    inputs: [{ name: 'tokenId', type: 'uint256' }],
-    name: 'tokenURI',
+    inputs: [],
+    name: 'name',
     outputs: [{ name: '', type: 'string' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [{ name: 'owner', type: 'address' }],
-    name: 'balanceOf',
-    outputs: [{ name: '', type: 'uint256' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: 'owner', type: 'address' }, { name: 'index', type: 'uint256' }],
-    name: 'tokenOfOwnerByIndex',
-    outputs: [{ name: '', type: 'uint256' }],
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', type: 'uint8' }],
     stateMutability: 'view',
     type: 'function',
   },
 ] as const;
 
-export interface TokenAsset {
-  type: 'token';
-  address: string;
-  symbol: string;
-  balance: string;
-  imageUrl: string;
+// Generate a placeholder image URL with token symbol
+function generatePlaceholderImage(symbol: string, color: string = '#4ECDC4'): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
+    <rect width="100" height="100" fill="${color}" rx="50"/>
+    <text x="50" y="55" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="middle">${symbol.slice(0, 3).toUpperCase()}</text>
+  </svg>`;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
 }
 
-export interface NFTAsset {
-  type: 'nft';
-  address: string;
-  tokenId: string;
-  name: string;
-  imageUrl: string;
-}
-
-export type WalletAsset = TokenAsset | NFTAsset;
-
-// Popular tokens on Base with their logos
-const POPULAR_TOKENS: { address: `0x${string}`; symbol: string; logo: string; decimals: number }[] = [
-  {
-    address: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    symbol: 'USDC',
-    logo: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png',
-    decimals: 6,
-  },
-  {
-    address: '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-    symbol: 'DAI',
-    logo: 'https://assets.coingecko.com/coins/images/9956/small/4943.png',
-    decimals: 18,
-  },
-  {
-    address: '0x4200000000000000000000000000000000000006',
-    symbol: 'WETH',
-    logo: 'https://assets.coingecko.com/coins/images/2518/small/weth.png',
-    decimals: 18,
-  },
-  {
-    address: '0x532f27101965dd16442e59d40670faf5ebb142e4',
-    symbol: 'BRETT',
-    logo: 'https://assets.coingecko.com/coins/images/35529/small/1000050750.png',
-    decimals: 18,
-  },
-  {
-    address: '0xac1bd2486aaf3b5c0fc3fd868558b082a531b2b4',
-    symbol: 'TOSHI',
-    logo: 'https://assets.coingecko.com/coins/images/31126/small/toshi.png',
-    decimals: 18,
-  },
-];
-
-// Fetch token balances
-export async function fetchTokenAssets(address: `0x${string}`): Promise<TokenAsset[]> {
-  const assets: TokenAsset[] = [];
-
-  // Get ETH balance
+// Fetch ETH balance
+export async function getEthBalance(address: Address): Promise<TokenAsset | null> {
   try {
-    const ethBalance = await publicClient.getBalance({ address });
-    if (ethBalance > 0n) {
-      assets.push({
-        type: 'token',
-        address: '0x0000000000000000000000000000000000000000',
-        symbol: 'ETH',
-        balance: formatUnits(ethBalance, 18),
-        imageUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
-      });
-    }
-  } catch (e) {
-    console.error('Failed to fetch ETH balance:', e);
-  }
+    const balance = await publicClient.getBalance({ address });
+    if (balance === 0n) return null;
 
-  // Check popular tokens
-  for (const token of POPULAR_TOKENS) {
+    return {
+      type: 'token',
+      address: '0x0000000000000000000000000000000000000000',
+      symbol: 'ETH',
+      name: 'Ethereum',
+      balance: formatUnits(balance, 18),
+      decimals: 18,
+      imageUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png',
+    };
+  } catch (error) {
+    console.error('Failed to fetch ETH balance:', error);
+    return null;
+  }
+}
+
+// Fetch ERC20 token balances for known tokens
+export async function getTokenBalances(address: Address): Promise<TokenAsset[]> {
+  const tokens: TokenAsset[] = [];
+
+  for (const [tokenAddress, tokenInfo] of Object.entries(KNOWN_TOKENS)) {
     try {
       const balance = await publicClient.readContract({
-        address: token.address,
-        abi: erc20Abi,
+        address: tokenAddress as Address,
+        abi: ERC20_ABI,
         functionName: 'balanceOf',
         args: [address],
       });
 
       if (balance > 0n) {
-        assets.push({
+        tokens.push({
           type: 'token',
-          address: token.address,
-          symbol: token.symbol,
-          balance: formatUnits(balance, token.decimals),
-          imageUrl: token.logo,
+          address: tokenAddress,
+          symbol: tokenInfo.symbol,
+          name: tokenInfo.name,
+          balance: formatUnits(balance, tokenInfo.decimals),
+          decimals: tokenInfo.decimals,
+          imageUrl: tokenInfo.logo,
         });
       }
-    } catch (e) {
-      console.error(`Failed to fetch ${token.symbol} balance:`, e);
+    } catch (error) {
+      console.error(`Failed to fetch balance for ${tokenInfo.symbol}:`, error);
     }
   }
 
-  return assets;
+  return tokens;
 }
 
-// Parse IPFS URL to HTTP URL
-function parseIPFSUrl(url: string): string {
-  if (url.startsWith('ipfs://')) {
-    return `https://ipfs.io/ipfs/${url.slice(7)}`;
-  }
-  if (url.startsWith('ar://')) {
-    return `https://arweave.net/${url.slice(5)}`;
-  }
-  return url;
-}
-
-// Fetch NFT metadata
-async function fetchNFTMetadata(tokenURI: string): Promise<{ name?: string; image?: string }> {
+// Fetch NFTs using Reservoir API (free tier)
+export async function getNFTs(address: Address): Promise<NFTAsset[]> {
   try {
-    const url = parseIPFSUrl(tokenURI);
-    const response = await fetch(url);
-    const metadata = await response.json();
-    return {
-      name: metadata.name,
-      image: metadata.image ? parseIPFSUrl(metadata.image) : undefined,
-    };
-  } catch (e) {
-    console.error('Failed to fetch NFT metadata:', e);
-    return {};
-  }
-}
-
-// Popular NFT collections on Base
-const POPULAR_NFTS: `0x${string}`[] = [
-  '0xd4307E0acD12CF46fD6Cf93BC264f5b5500Fcae9', // Base, Pair with Purpose
-  '0xBa5e05cb26b78eDa3A2f8e3b3814726305dcAc83', // BASE Day One
-  '0x1fc10ef15e041c5d3c54042e52eb0c54cb9b710c', // Base Gods
-];
-
-// Fetch NFT assets
-export async function fetchNFTAssets(address: `0x${string}`): Promise<NFTAsset[]> {
-  const assets: NFTAsset[] = [];
-
-  for (const nftAddress of POPULAR_NFTS) {
-    try {
-      const balance = await publicClient.readContract({
-        address: nftAddress,
-        abi: erc721Abi,
-        functionName: 'balanceOf',
-        args: [address],
-      });
-
-      if (balance > 0n) {
-        // Get first 3 tokens owned
-        const tokensToFetch = Math.min(Number(balance), 3);
-        for (let i = 0; i < tokensToFetch; i++) {
-          try {
-            const tokenId = await publicClient.readContract({
-              address: nftAddress,
-              abi: erc721Abi,
-              functionName: 'tokenOfOwnerByIndex',
-              args: [address, BigInt(i)],
-            });
-
-            const tokenURI = await publicClient.readContract({
-              address: nftAddress,
-              abi: erc721Abi,
-              functionName: 'tokenURI',
-              args: [tokenId],
-            });
-
-            const metadata = await fetchNFTMetadata(tokenURI);
-
-            if (metadata.image) {
-              assets.push({
-                type: 'nft',
-                address: nftAddress,
-                tokenId: tokenId.toString(),
-                name: metadata.name || `NFT #${tokenId}`,
-                imageUrl: metadata.image,
-              });
-            }
-          } catch (e) {
-            console.error('Failed to fetch token:', e);
-          }
-        }
+    // Using Reservoir API - free tier available
+    const response = await fetch(
+      `https://api-base.reservoir.tools/users/${address}/tokens/v7?limit=50`,
+      {
+        headers: {
+          'x-api-key': 'demo-api-key', // Free demo key for development
+        },
       }
-    } catch (e) {
-      console.error('Failed to fetch NFT balance:', e);
-    }
-  }
+    );
 
-  return assets;
+    if (!response.ok) {
+      console.error('Reservoir API error:', response.status);
+      return [];
+    }
+
+    const data = await response.json();
+
+    return (data.tokens || []).map((item: { token: { contract: string; tokenId: string; name?: string; image?: string; collection?: { name?: string } } }) => ({
+      type: 'nft' as const,
+      contractAddress: item.token.contract,
+      tokenId: item.token.tokenId,
+      name: item.token.name || `NFT #${item.token.tokenId}`,
+      imageUrl: item.token.image || generatePlaceholderImage('NFT', '#A855F7'),
+      collectionName: item.token.collection?.name || 'Unknown Collection',
+    }));
+  } catch (error) {
+    console.error('Failed to fetch NFTs:', error);
+    return [];
+  }
 }
 
-// Fetch all wallet assets
-export async function fetchWalletAssets(address: `0x${string}`): Promise<WalletAsset[]> {
-  const [tokens, nfts] = await Promise.all([
-    fetchTokenAssets(address),
-    fetchNFTAssets(address),
+// Get all wallet assets
+export async function getAllWalletAssets(address: Address): Promise<WalletAsset[]> {
+  const [ethBalance, tokens, nfts] = await Promise.all([
+    getEthBalance(address),
+    getTokenBalances(address),
+    getNFTs(address),
   ]);
 
-  return [...tokens, ...nfts];
+  const assets: WalletAsset[] = [];
+
+  if (ethBalance) {
+    assets.push(ethBalance);
+  }
+
+  assets.push(...tokens);
+  assets.push(...nfts);
+
+  return assets;
 }
 
-// Default enemy images when wallet has no assets
-export const DEFAULT_ENEMIES = [
-  { imageUrl: 'https://assets.coingecko.com/coins/images/279/small/ethereum.png', name: 'ETH' },
-  { imageUrl: 'https://assets.coingecko.com/coins/images/6319/small/USD_Coin_icon.png', name: 'USDC' },
-  { imageUrl: 'https://assets.coingecko.com/coins/images/35529/small/1000050750.png', name: 'BRETT' },
-  { imageUrl: 'https://assets.coingecko.com/coins/images/31126/small/toshi.png', name: 'TOSHI' },
-  { imageUrl: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png', name: 'BNB' },
-  { imageUrl: 'https://assets.coingecko.com/coins/images/4128/small/solana.png', name: 'SOL' },
-];
+// Generate fallback enemy images when wallet has no assets
+export function generateFallbackEnemies(): WalletAsset[] {
+  const colors = ['#FF6B6B', '#4ECDC4', '#FFE66D', '#A855F7', '#3B82F6', '#22C55E', '#F97316', '#EC4899'];
+  const symbols = ['BTC', 'ETH', 'SOL', 'DOGE', 'SHIB', 'PEPE', 'APE', 'UNI'];
+
+  return symbols.map((symbol, index) => ({
+    type: 'token' as const,
+    address: `0x${index.toString().padStart(40, '0')}`,
+    symbol,
+    name: `${symbol} Token`,
+    balance: '0',
+    decimals: 18,
+    imageUrl: generatePlaceholderImage(symbol, colors[index % colors.length]),
+  }));
+}

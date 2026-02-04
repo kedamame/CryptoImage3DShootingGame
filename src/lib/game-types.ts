@@ -1,120 +1,175 @@
-// Game state types
-export interface GameState {
-  score: number;
-  lives: number;
-  isPlaying: boolean;
-  isGameOver: boolean;
-  isPaused: boolean;
-  level: number;
-  combo: number;
-}
+import type { WalletAsset } from './wallet-assets';
 
-export interface PlayerState {
+export interface Vector3 {
   x: number;
   y: number;
-  width: number;
-  height: number;
-  speed: number;
-  fireRate: number;
-  lastFireTime: number;
+  z: number;
+}
+
+export interface Player {
+  id: string;
+  position: Vector3;
+  lives: number;
+  score: number;
   isInvincible: boolean;
   invincibleUntil: number;
-  powerUps: ActivePowerUp[];
+}
+
+export interface PlayerShip {
+  id: string;
+  position: Vector3;
+  offset: Vector3; // Offset from main player position
+}
+
+export interface Bullet {
+  id: string;
+  position: Vector3;
+  velocity: Vector3;
+  isPlayerBullet: boolean;
+  damage: number;
 }
 
 export interface Enemy {
   id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  speed: number;
+  position: Vector3;
+  velocity: Vector3;
   health: number;
   maxHealth: number;
-  imageUrl: string;
-  name: string;
-  rotation: number;
-  rotationSpeed: number;
-  pattern: EnemyPattern;
-  patternData: Record<string, number>;
+  asset: WalletAsset;
+  scoreValue: number;
+  dropChance: number;
 }
 
-export type EnemyPattern = 'straight' | 'zigzag' | 'sine' | 'spiral' | 'chase';
-
-export interface Bullet {
+export interface Obstacle {
   id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  speed: number;
-  damage: number;
-  isPlayerBullet: boolean;
+  position: Vector3;
+  velocity: Vector3;
+  health: number;
+  maxHealth: number;
+  size: Vector3;
   color: string;
 }
 
-export interface PowerUp {
+export type ItemType = 'extraShip' | 'speedUp' | 'shield' | 'rapidFire' | 'scoreMultiplier';
+
+export interface DropItem {
   id: string;
-  type: PowerUpType;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  speed: number;
+  position: Vector3;
+  velocity: Vector3;
+  itemType: ItemType;
+  duration: number; // in seconds, 0 for permanent effects
 }
 
-export type PowerUpType = 'rapidFire' | 'shield' | 'multiShot' | 'bomb' | 'slowMotion';
-
-export interface ActivePowerUp {
-  type: PowerUpType;
+export interface ActiveEffect {
+  type: ItemType;
   expiresAt: number;
 }
 
-export interface Particle {
-  id: string;
-  x: number;
-  y: number;
-  vx: number;
-  vy: number;
-  life: number;
-  maxLife: number;
-  color: string;
-  size: number;
+export interface GameState {
+  status: 'idle' | 'playing' | 'paused' | 'gameOver';
+  player: Player;
+  playerShips: PlayerShip[];
+  bullets: Bullet[];
+  enemies: Enemy[];
+  obstacles: Obstacle[];
+  dropItems: DropItem[];
+  activeEffects: ActiveEffect[];
+  walletAssets: WalletAsset[];
+  lastSpawnTime: number;
+  lastObstacleSpawnTime: number;
+  gameTime: number;
+  difficulty: number;
 }
 
-export interface ScorePopup {
-  id: string;
-  x: number;
-  y: number;
-  value: number;
-  life: number;
-}
+export const GAME_CONFIG = {
+  // Game area
+  GAME_WIDTH: 16,
+  GAME_HEIGHT: 20,
+  GAME_DEPTH: 5,
 
-// Power-up configurations
-export const POWER_UP_CONFIG: Record<PowerUpType, { duration: number; color: string; emoji: string }> = {
-  rapidFire: { duration: 5000, color: '#FF6B6B', emoji: '🔥' },
-  shield: { duration: 8000, color: '#4ECDC4', emoji: '🛡️' },
-  multiShot: { duration: 6000, color: '#A855F7', emoji: '✨' },
-  bomb: { duration: 0, color: '#FFE66D', emoji: '💣' },
-  slowMotion: { duration: 4000, color: '#3B82F6', emoji: '⏱️' },
-};
+  // Player
+  PLAYER_SPEED: 0.15,
+  PLAYER_INITIAL_LIVES: 3,
+  INVINCIBILITY_DURATION: 2000, // ms
+  BULLET_SPEED: 0.4,
+  FIRE_RATE: 150, // ms between shots
 
-// Isometric projection helpers
-export const ISO_ANGLE = Math.PI / 6; // 30 degrees
-export const ISO_SCALE_Y = 0.5;
+  // Extra ships
+  EXTRA_SHIP_OFFSET: 1.5,
 
-export function toIsometric(x: number, y: number): { isoX: number; isoY: number } {
+  // Enemies
+  ENEMY_BASE_SPEED: 0.03,
+  ENEMY_SPAWN_INTERVAL: 2000, // ms
+  ENEMY_BASE_HEALTH: 3,
+  ENEMY_BASE_SCORE: 100,
+  ENEMY_DROP_CHANCE: 0.2, // 20% chance to drop item
+
+  // Obstacles
+  OBSTACLE_SPAWN_INTERVAL: 3000, // ms
+  OBSTACLE_BASE_SPEED: 0.05,
+  OBSTACLE_BASE_HEALTH: 5,
+
+  // Items
+  ITEM_FALL_SPEED: 0.05,
+  EFFECT_DURATION: 10000, // ms
+
+  // Difficulty scaling
+  DIFFICULTY_INCREASE_INTERVAL: 30000, // ms
+  MAX_DIFFICULTY: 10,
+
+  // Colors (Unrailed-inspired)
+  COLORS: {
+    primary: '#FF6B6B',
+    secondary: '#4ECDC4',
+    accent: '#FFE66D',
+    purple: '#A855F7',
+    blue: '#3B82F6',
+    green: '#22C55E',
+    orange: '#F97316',
+    pink: '#EC4899',
+  },
+
+  // Item colors
+  ITEM_COLORS: {
+    extraShip: '#FFE66D',
+    speedUp: '#4ECDC4',
+    shield: '#3B82F6',
+    rapidFire: '#FF6B6B',
+    scoreMultiplier: '#A855F7',
+  },
+} as const;
+
+export function createInitialGameState(walletAssets: WalletAsset[]): GameState {
   return {
-    isoX: (x - y) * Math.cos(ISO_ANGLE),
-    isoY: (x + y) * Math.sin(ISO_ANGLE) * ISO_SCALE_Y,
+    status: 'idle',
+    player: {
+      id: 'player',
+      position: { x: 0, y: -GAME_CONFIG.GAME_HEIGHT / 2 + 3, z: 0 },
+      lives: GAME_CONFIG.PLAYER_INITIAL_LIVES,
+      score: 0,
+      isInvincible: false,
+      invincibleUntil: 0,
+    },
+    playerShips: [
+      {
+        id: 'main-ship',
+        position: { x: 0, y: -GAME_CONFIG.GAME_HEIGHT / 2 + 3, z: 0 },
+        offset: { x: 0, y: 0, z: 0 },
+      },
+    ],
+    bullets: [],
+    enemies: [],
+    obstacles: [],
+    dropItems: [],
+    activeEffects: [],
+    walletAssets,
+    lastSpawnTime: 0,
+    lastObstacleSpawnTime: 0,
+    gameTime: 0,
+    difficulty: 1,
   };
 }
 
-export function fromIsometric(isoX: number, isoY: number): { x: number; y: number } {
-  const cosA = Math.cos(ISO_ANGLE);
-  const sinA = Math.sin(ISO_ANGLE) * ISO_SCALE_Y;
-  return {
-    x: (isoX / cosA + isoY / sinA) / 2,
-    y: (isoY / sinA - isoX / cosA) / 2,
-  };
+export function generateId(): string {
+  return Math.random().toString(36).substring(2, 11);
 }

@@ -1,285 +1,389 @@
 import {
-  GameState,
-  PlayerState,
-  Enemy,
-  Bullet,
-  PowerUp,
-  Particle,
-  ScorePopup,
-  EnemyPattern,
-  PowerUpType,
-  POWER_UP_CONFIG,
+  type GameState,
+  type Bullet,
+  type Enemy,
+  type Obstacle,
+  type DropItem,
+  type PlayerShip,
+  type ItemType,
+  GAME_CONFIG,
+  generateId,
 } from './game-types';
 
-// Generate unique ID
-let idCounter = 0;
-export const generateId = () => `${Date.now()}-${idCounter++}`;
+// Spawn a new enemy from wallet assets
+export function spawnEnemy(state: GameState): Enemy | null {
+  if (state.walletAssets.length === 0) return null;
 
-// Initial game state
-export const createInitialGameState = (): GameState => ({
-  score: 0,
-  lives: 3,
-  isPlaying: false,
-  isGameOver: false,
-  isPaused: false,
-  level: 1,
-  combo: 0,
-});
-
-// Initial player state
-export const createInitialPlayerState = (canvasWidth: number, canvasHeight: number): PlayerState => ({
-  x: canvasWidth / 2,
-  y: canvasHeight - 100,
-  width: 50,
-  height: 50,
-  speed: 8,
-  fireRate: 200,
-  lastFireTime: 0,
-  isInvincible: false,
-  invincibleUntil: 0,
-  powerUps: [],
-});
-
-// Enemy patterns
-const patterns: EnemyPattern[] = ['straight', 'zigzag', 'sine', 'spiral', 'chase'];
-
-// Create random enemy
-export const createEnemy = (
-  canvasWidth: number,
-  imageUrl: string,
-  name: string,
-  level: number
-): Enemy => {
-  const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-  const baseSpeed = 1 + level * 0.3;
-  const baseHealth = 1 + Math.floor(level / 3);
+  const asset = state.walletAssets[Math.floor(Math.random() * state.walletAssets.length)];
+  const x = (Math.random() - 0.5) * (GAME_CONFIG.GAME_WIDTH - 2);
 
   return {
     id: generateId(),
-    x: Math.random() * (canvasWidth - 60) + 30,
-    y: -60,
-    width: 50 + Math.random() * 20,
-    height: 50 + Math.random() * 20,
-    speed: baseSpeed + Math.random() * 1.5,
-    health: baseHealth,
-    maxHealth: baseHealth,
-    imageUrl,
-    name,
-    rotation: 0,
-    rotationSpeed: (Math.random() - 0.5) * 0.1,
-    pattern,
-    patternData: {
-      amplitude: 50 + Math.random() * 50,
-      frequency: 0.02 + Math.random() * 0.03,
-      startX: 0,
-      time: 0,
+    position: { x, y: GAME_CONFIG.GAME_HEIGHT / 2 + 2, z: 0 },
+    velocity: {
+      x: (Math.random() - 0.5) * 0.02,
+      y: -(GAME_CONFIG.ENEMY_BASE_SPEED * (1 + state.difficulty * 0.1)),
+      z: 0,
     },
+    health: GAME_CONFIG.ENEMY_BASE_HEALTH + Math.floor(state.difficulty / 2),
+    maxHealth: GAME_CONFIG.ENEMY_BASE_HEALTH + Math.floor(state.difficulty / 2),
+    asset,
+    scoreValue: GAME_CONFIG.ENEMY_BASE_SCORE * state.difficulty,
+    dropChance: GAME_CONFIG.ENEMY_DROP_CHANCE,
   };
-};
+}
 
-// Update enemy position based on pattern
-export const updateEnemyPosition = (
-  enemy: Enemy,
-  playerX: number,
-  deltaTime: number,
-  slowMotion: boolean
-): Enemy => {
-  const speedMultiplier = slowMotion ? 0.3 : 1;
-  const speed = enemy.speed * speedMultiplier;
-  enemy.patternData.time = (enemy.patternData.time || 0) + deltaTime;
+// Spawn a destructible obstacle
+export function spawnObstacle(state: GameState): Obstacle {
+  const x = (Math.random() - 0.5) * (GAME_CONFIG.GAME_WIDTH - 4);
+  const colors = Object.values(GAME_CONFIG.COLORS);
+  const color = colors[Math.floor(Math.random() * colors.length)];
 
-  switch (enemy.pattern) {
-    case 'straight':
-      enemy.y += speed;
-      break;
+  return {
+    id: generateId(),
+    position: { x, y: GAME_CONFIG.GAME_HEIGHT / 2 + 2, z: 0 },
+    velocity: {
+      x: 0,
+      y: -(GAME_CONFIG.OBSTACLE_BASE_SPEED * (1 + state.difficulty * 0.05)),
+      z: 0,
+    },
+    health: GAME_CONFIG.OBSTACLE_BASE_HEALTH,
+    maxHealth: GAME_CONFIG.OBSTACLE_BASE_HEALTH,
+    size: {
+      x: 1 + Math.random() * 1.5,
+      y: 1 + Math.random() * 1.5,
+      z: 1 + Math.random() * 0.5,
+    },
+    color,
+  };
+}
 
-    case 'zigzag':
-      enemy.y += speed;
-      if (!enemy.patternData.startX) enemy.patternData.startX = enemy.x;
-      enemy.x = enemy.patternData.startX + Math.sin(enemy.patternData.time * 0.003) * enemy.patternData.amplitude;
-      break;
-
-    case 'sine':
-      enemy.y += speed * 0.8;
-      if (!enemy.patternData.startX) enemy.patternData.startX = enemy.x;
-      enemy.x = enemy.patternData.startX + Math.sin(enemy.y * enemy.patternData.frequency) * enemy.patternData.amplitude;
-      break;
-
-    case 'spiral':
-      enemy.y += speed * 0.6;
-      const spiralRadius = 30 + enemy.patternData.time * 0.01;
-      enemy.x += Math.cos(enemy.patternData.time * 0.005) * spiralRadius * 0.02;
-      break;
-
-    case 'chase':
-      enemy.y += speed * 0.7;
-      const dx = playerX - enemy.x;
-      enemy.x += Math.sign(dx) * Math.min(Math.abs(dx) * 0.02, speed);
-      break;
-  }
-
-  enemy.rotation += enemy.rotationSpeed;
-  return enemy;
-};
-
-// Create bullet
-export const createBullet = (
+// Create a bullet
+export function createBullet(
   x: number,
   y: number,
   isPlayerBullet: boolean,
-  angle: number = -Math.PI / 2,
-  damage: number = 1
-): Bullet => ({
-  id: generateId(),
-  x,
-  y,
-  width: isPlayerBullet ? 8 : 12,
-  height: isPlayerBullet ? 20 : 12,
-  speed: isPlayerBullet ? 15 : 5,
-  damage,
-  isPlayerBullet,
-  color: isPlayerBullet ? '#FFE66D' : '#FF6B6B',
-});
+  state: GameState
+): Bullet {
+  const hasRapidFire = state.activeEffects.some((e) => e.type === 'rapidFire');
+  const speed = isPlayerBullet
+    ? GAME_CONFIG.BULLET_SPEED * (hasRapidFire ? 1.5 : 1)
+    : GAME_CONFIG.BULLET_SPEED * 0.5;
 
-// Create power-up with random type
-export const createPowerUp = (x: number, y: number): PowerUp => {
-  const types: PowerUpType[] = ['rapidFire', 'shield', 'multiShot', 'bomb', 'slowMotion'];
-  const weights = [30, 20, 25, 10, 15]; // Weighted probability
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-  let random = Math.random() * totalWeight;
+  return {
+    id: generateId(),
+    position: { x, y, z: 0 },
+    velocity: { x: 0, y: isPlayerBullet ? speed : -speed, z: 0 },
+    isPlayerBullet,
+    damage: isPlayerBullet ? 1 : 1,
+  };
+}
 
-  let type: PowerUpType = 'rapidFire';
-  for (let i = 0; i < types.length; i++) {
+// Create a drop item
+export function createDropItem(x: number, y: number): DropItem {
+  const itemTypes: ItemType[] = ['extraShip', 'speedUp', 'shield', 'rapidFire', 'scoreMultiplier'];
+  const weights = [0.15, 0.25, 0.2, 0.2, 0.2]; // extraShip is rarer
+
+  let random = Math.random();
+  let itemType: ItemType = 'speedUp';
+
+  for (let i = 0; i < itemTypes.length; i++) {
     random -= weights[i];
     if (random <= 0) {
-      type = types[i];
+      itemType = itemTypes[i];
       break;
     }
   }
 
   return {
     id: generateId(),
-    type,
-    x,
-    y,
-    width: 30,
-    height: 30,
-    speed: 2,
+    position: { x, y, z: 0 },
+    velocity: { x: 0, y: -GAME_CONFIG.ITEM_FALL_SPEED, z: 0 },
+    itemType,
+    duration: itemType === 'extraShip' ? 0 : GAME_CONFIG.EFFECT_DURATION,
   };
-};
+}
 
-// Create explosion particles
-export const createExplosionParticles = (x: number, y: number, color: string, count: number = 10): Particle[] => {
-  const particles: Particle[] = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
-    const speed = 2 + Math.random() * 4;
-    particles.push({
-      id: generateId(),
-      x,
-      y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life: 1,
-      maxLife: 1,
-      color,
-      size: 3 + Math.random() * 5,
-    });
-  }
-  return particles;
-};
+// Add an extra ship
+export function addExtraShip(state: GameState): PlayerShip {
+  const shipCount = state.playerShips.length;
+  const side = shipCount % 2 === 0 ? 1 : -1;
+  const level = Math.floor((shipCount + 1) / 2);
 
-// Create score popup
-export const createScorePopup = (x: number, y: number, value: number): ScorePopup => ({
-  id: generateId(),
-  x,
-  y,
-  value,
-  life: 1,
-});
+  return {
+    id: generateId(),
+    position: { ...state.player.position },
+    offset: {
+      x: side * level * GAME_CONFIG.EXTRA_SHIP_OFFSET,
+      y: -level * 0.3,
+      z: 0,
+    },
+  };
+}
 
-// Check collision between two rectangles
-export const checkCollision = (
-  a: { x: number; y: number; width: number; height: number },
-  b: { x: number; y: number; width: number; height: number }
-): boolean => {
-  return (
-    a.x - a.width / 2 < b.x + b.width / 2 &&
-    a.x + a.width / 2 > b.x - b.width / 2 &&
-    a.y - a.height / 2 < b.y + b.height / 2 &&
-    a.y + a.height / 2 > b.y - b.height / 2
+// Check collision between two objects
+export function checkCollision(
+  pos1: { x: number; y: number },
+  size1: number,
+  pos2: { x: number; y: number },
+  size2: number
+): boolean {
+  const dx = pos1.x - pos2.x;
+  const dy = pos1.y - pos2.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  return distance < (size1 + size2) / 2;
+}
+
+// Main game update function
+export function updateGameState(
+  state: GameState,
+  deltaTime: number,
+  currentTime: number,
+  touchPosition: { x: number; y: number } | null,
+  isTouching: boolean
+): GameState {
+  if (state.status !== 'playing') return state;
+
+  const newState = { ...state };
+  newState.gameTime += deltaTime;
+
+  // Update difficulty
+  newState.difficulty = Math.min(
+    GAME_CONFIG.MAX_DIFFICULTY,
+    1 + Math.floor(newState.gameTime / GAME_CONFIG.DIFFICULTY_INCREASE_INTERVAL)
   );
-};
 
-// Calculate score for defeating enemy
-export const calculateScore = (enemy: Enemy, combo: number): number => {
-  const baseScore = 100;
-  const healthBonus = enemy.maxHealth * 50;
-  const comboMultiplier = 1 + combo * 0.1;
-  return Math.floor((baseScore + healthBonus) * comboMultiplier);
-};
+  // Update player position based on touch
+  if (touchPosition && isTouching) {
+    const targetX = touchPosition.x;
+    const targetY = touchPosition.y;
+    const hasSpeedUp = newState.activeEffects.some((e) => e.type === 'speedUp');
+    const speed = GAME_CONFIG.PLAYER_SPEED * (hasSpeedUp ? 1.5 : 1);
 
-// Check if power-up should drop (10% chance)
-export const shouldDropPowerUp = (): boolean => Math.random() < 0.1;
+    const dx = targetX - newState.player.position.x;
+    const dy = targetY - newState.player.position.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
 
-// Get active power-up effect
-export const hasActivePowerUp = (player: PlayerState, type: PowerUpType): boolean => {
-  const now = Date.now();
-  return player.powerUps.some(p => p.type === type && p.expiresAt > now);
-};
+    if (distance > 0.1) {
+      newState.player.position.x += (dx / distance) * speed;
+      newState.player.position.y += (dy / distance) * speed;
+    }
 
-// Add power-up to player
-export const addPowerUp = (player: PlayerState, type: PowerUpType): PlayerState => {
-  const config = POWER_UP_CONFIG[type];
-  const now = Date.now();
-
-  // Remove expired power-ups
-  const activePowerUps = player.powerUps.filter(p => p.expiresAt > now);
-
-  // Handle instant power-ups
-  if (type === 'bomb') {
-    // Bomb is handled separately
-    return { ...player, powerUps: activePowerUps };
+    // Clamp position
+    const halfWidth = GAME_CONFIG.GAME_WIDTH / 2 - 1;
+    const halfHeight = GAME_CONFIG.GAME_HEIGHT / 2 - 1;
+    newState.player.position.x = Math.max(-halfWidth, Math.min(halfWidth, newState.player.position.x));
+    newState.player.position.y = Math.max(-halfHeight, Math.min(halfHeight, newState.player.position.y));
   }
 
-  // Add or extend power-up
-  const existingIndex = activePowerUps.findIndex(p => p.type === type);
-  if (existingIndex >= 0) {
-    activePowerUps[existingIndex].expiresAt = now + config.duration;
-  } else {
-    activePowerUps.push({ type, expiresAt: now + config.duration });
+  // Update player ships positions
+  newState.playerShips = newState.playerShips.map((ship) => ({
+    ...ship,
+    position: {
+      x: newState.player.position.x + ship.offset.x,
+      y: newState.player.position.y + ship.offset.y,
+      z: newState.player.position.z + ship.offset.z,
+    },
+  }));
+
+  // Update invincibility
+  if (newState.player.isInvincible && currentTime > newState.player.invincibleUntil) {
+    newState.player.isInvincible = false;
   }
 
-  // Apply effects
-  let newPlayer = { ...player, powerUps: activePowerUps };
+  // Remove expired effects
+  newState.activeEffects = newState.activeEffects.filter((e) => e.expiresAt > currentTime);
 
-  if (type === 'shield') {
-    newPlayer.isInvincible = true;
-    newPlayer.invincibleUntil = now + config.duration;
+  // Update bullets
+  newState.bullets = newState.bullets
+    .map((bullet) => ({
+      ...bullet,
+      position: {
+        x: bullet.position.x + bullet.velocity.x,
+        y: bullet.position.y + bullet.velocity.y,
+        z: bullet.position.z + bullet.velocity.z,
+      },
+    }))
+    .filter(
+      (bullet) =>
+        bullet.position.y < GAME_CONFIG.GAME_HEIGHT / 2 + 2 &&
+        bullet.position.y > -GAME_CONFIG.GAME_HEIGHT / 2 - 2
+    );
+
+  // Update enemies
+  newState.enemies = newState.enemies
+    .map((enemy) => ({
+      ...enemy,
+      position: {
+        x: enemy.position.x + enemy.velocity.x,
+        y: enemy.position.y + enemy.velocity.y,
+        z: enemy.position.z + enemy.velocity.z,
+      },
+    }))
+    .filter((enemy) => enemy.position.y > -GAME_CONFIG.GAME_HEIGHT / 2 - 3);
+
+  // Update obstacles
+  newState.obstacles = newState.obstacles
+    .map((obstacle) => ({
+      ...obstacle,
+      position: {
+        x: obstacle.position.x + obstacle.velocity.x,
+        y: obstacle.position.y + obstacle.velocity.y,
+        z: obstacle.position.z + obstacle.velocity.z,
+      },
+    }))
+    .filter((obstacle) => obstacle.position.y > -GAME_CONFIG.GAME_HEIGHT / 2 - 3);
+
+  // Update drop items
+  newState.dropItems = newState.dropItems
+    .map((item) => ({
+      ...item,
+      position: {
+        x: item.position.x + item.velocity.x,
+        y: item.position.y + item.velocity.y,
+        z: item.position.z + item.velocity.z,
+      },
+    }))
+    .filter((item) => item.position.y > -GAME_CONFIG.GAME_HEIGHT / 2 - 2);
+
+  // Check bullet-enemy collisions
+  const bulletsToRemove = new Set<string>();
+  const enemiesToRemove = new Set<string>();
+
+  for (const bullet of newState.bullets) {
+    if (!bullet.isPlayerBullet) continue;
+
+    for (const enemy of newState.enemies) {
+      if (checkCollision(bullet.position, 0.3, enemy.position, 1.2)) {
+        bulletsToRemove.add(bullet.id);
+        enemy.health -= bullet.damage;
+
+        if (enemy.health <= 0) {
+          enemiesToRemove.add(enemy.id);
+          const hasMultiplier = newState.activeEffects.some((e) => e.type === 'scoreMultiplier');
+          newState.player.score += enemy.scoreValue * (hasMultiplier ? 2 : 1);
+
+          // Check for drop
+          if (Math.random() < enemy.dropChance) {
+            newState.dropItems.push(createDropItem(enemy.position.x, enemy.position.y));
+          }
+        }
+        break;
+      }
+    }
   }
 
-  if (type === 'rapidFire') {
-    newPlayer.fireRate = 100; // Faster fire rate
+  // Check bullet-obstacle collisions
+  const obstaclesToRemove = new Set<string>();
+
+  for (const bullet of newState.bullets) {
+    if (!bullet.isPlayerBullet) continue;
+
+    for (const obstacle of newState.obstacles) {
+      if (checkCollision(bullet.position, 0.3, obstacle.position, Math.max(obstacle.size.x, obstacle.size.y))) {
+        bulletsToRemove.add(bullet.id);
+        obstacle.health -= bullet.damage;
+
+        if (obstacle.health <= 0) {
+          obstaclesToRemove.add(obstacle.id);
+          newState.player.score += 50;
+
+          // Small chance to drop item from obstacles
+          if (Math.random() < 0.1) {
+            newState.dropItems.push(createDropItem(obstacle.position.x, obstacle.position.y));
+          }
+        }
+        break;
+      }
+    }
   }
 
-  return newPlayer;
-};
+  // Check player-enemy collisions
+  if (!newState.player.isInvincible) {
+    for (const enemy of newState.enemies) {
+      if (checkCollision(newState.player.position, 0.8, enemy.position, 1.0)) {
+        const hasShield = newState.activeEffects.some((e) => e.type === 'shield');
 
-// Update player power-ups (remove expired)
-export const updatePlayerPowerUps = (player: PlayerState): PlayerState => {
-  const now = Date.now();
-  const activePowerUps = player.powerUps.filter(p => p.expiresAt > now);
+        if (hasShield) {
+          newState.activeEffects = newState.activeEffects.filter((e) => e.type !== 'shield');
+        } else {
+          newState.player.lives -= 1;
+          newState.player.isInvincible = true;
+          newState.player.invincibleUntil = currentTime + GAME_CONFIG.INVINCIBILITY_DURATION;
 
-  // Reset effects if power-up expired
-  let newPlayer = { ...player, powerUps: activePowerUps };
+          // Remove one extra ship if any
+          if (newState.playerShips.length > 1) {
+            newState.playerShips.pop();
+          }
+        }
 
-  if (!hasActivePowerUp(newPlayer, 'rapidFire')) {
-    newPlayer.fireRate = 200;
+        enemiesToRemove.add(enemy.id);
+        break;
+      }
+    }
   }
 
-  if (newPlayer.invincibleUntil < now) {
-    newPlayer.isInvincible = false;
+  // Check player-obstacle collisions
+  if (!newState.player.isInvincible) {
+    for (const obstacle of newState.obstacles) {
+      if (
+        checkCollision(
+          newState.player.position,
+          0.8,
+          obstacle.position,
+          Math.max(obstacle.size.x, obstacle.size.y)
+        )
+      ) {
+        const hasShield = newState.activeEffects.some((e) => e.type === 'shield');
+
+        if (hasShield) {
+          newState.activeEffects = newState.activeEffects.filter((e) => e.type !== 'shield');
+        } else {
+          newState.player.lives -= 1;
+          newState.player.isInvincible = true;
+          newState.player.invincibleUntil = currentTime + GAME_CONFIG.INVINCIBILITY_DURATION;
+
+          if (newState.playerShips.length > 1) {
+            newState.playerShips.pop();
+          }
+        }
+
+        obstaclesToRemove.add(obstacle.id);
+        break;
+      }
+    }
   }
 
-  return newPlayer;
-};
+  // Check player-item collisions
+  const itemsToRemove = new Set<string>();
+
+  for (const item of newState.dropItems) {
+    if (checkCollision(newState.player.position, 1.0, item.position, 0.8)) {
+      itemsToRemove.add(item.id);
+
+      if (item.itemType === 'extraShip') {
+        newState.playerShips.push(addExtraShip(newState));
+      } else {
+        // Remove existing effect of same type and add new one
+        newState.activeEffects = newState.activeEffects.filter((e) => e.type !== item.itemType);
+        newState.activeEffects.push({
+          type: item.itemType,
+          expiresAt: currentTime + item.duration,
+        });
+      }
+    }
+  }
+
+  // Apply removals
+  newState.bullets = newState.bullets.filter((b) => !bulletsToRemove.has(b.id));
+  newState.enemies = newState.enemies.filter((e) => !enemiesToRemove.has(e.id));
+  newState.obstacles = newState.obstacles.filter((o) => !obstaclesToRemove.has(o.id));
+  newState.dropItems = newState.dropItems.filter((i) => !itemsToRemove.has(i.id));
+
+  // Check game over
+  if (newState.player.lives <= 0) {
+    newState.status = 'gameOver';
+  }
+
+  return newState;
+}

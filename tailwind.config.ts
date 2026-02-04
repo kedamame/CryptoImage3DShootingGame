@@ -10,23 +10,23 @@ const config: Config = {
     extend: {
       colors: {
         // Unrailed-inspired pop colors
-        primary: '#FF6B6B',
-        secondary: '#4ECDC4',
-        accent: '#FFE66D',
-        purple: '#A855F7',
-        blue: '#3B82F6',
-        green: '#22C55E',
-        orange: '#F97316',
-        pink: '#EC4899',
-        dark: '#1A1A2E',
-        darker: '#16213E',
+        primary: '#FF6B6B',    // Coral red
+        secondary: '#4ECDC4',  // Teal
+        accent: '#FFE66D',     // Yellow
+        purple: '#A855F7',     // Purple
+        blue: '#3B82F6',       // Blue
+        green: '#22C55E',      // Green
+        orange: '#F97316',     // Orange
+        pink: '#EC4899',       // Pink
+        dark: '#1A1A2E',       // Dark background
+        darker: '#0F0F1A',     // Darker background
       },
       fontFamily: {
-        game: ['var(--font-game)', 'system-ui', 'sans-serif'],
+        game: ['system-ui', 'sans-serif'],
       },
       animation: {
+        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-slow': 'bounce 2s infinite',
-        'pulse-fast': 'pulse 0.5s infinite',
         'float': 'float 3s ease-in-out infinite',
       },
       keyframes: {
