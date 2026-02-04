@@ -1,0 +1,39 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1A1A2E"/>
+      <stop offset="100%" style="stop-color:#16213E"/>
+    </linearGradient>
+    <linearGradient id="ship" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ECDC4"/>
+      <stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+
+  <!-- Ship -->
+  <path d="M256 120 L340 280 L256 350 L172 280 Z" fill="url(#ship)"/>
+
+  <!-- Cockpit -->
+  <ellipse cx="256" cy="230" rx="30" ry="50" fill="#FFE66D"/>
+
+  <!-- Wings glow -->
+  <ellipse cx="190" cy="270" rx="20" ry="35" fill="#FF6B6B" opacity="0.7"/>
+  <ellipse cx="322" cy="270" rx="20" ry="35" fill="#FF6B6B" opacity="0.7"/>
+
+  <!-- Flames -->
+  <path d="M230 350 L256 420 L282 350" fill="#F97316"/>
+
+  <!-- Stars -->
+  <circle cx="100" cy="100" r="4" fill="#FFE66D"/>
+  <circle cx="400" cy="80" r="3" fill="#FFE66D"/>
+  <circle cx="80" cy="350" r="3" fill="#FFE66D"/>
+  <circle cx="420" cy="400" r="4" fill="#FFE66D"/>
+  <circle cx="350" cy="150" r="2" fill="#FFE66D"/>
+
+  <!-- Coins/tokens floating -->
+  <circle cx="380" cy="300" r="25" fill="#A855F7" opacity="0.8"/>
+  <circle cx="130" cy="200" r="20" fill="#EC4899" opacity="0.8"/>
+</svg>
