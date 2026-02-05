@@ -207,7 +207,7 @@ function BackgroundGrid() {
 
 // Game scene
 function GameScene() {
-  const { camera, gl } = useThree();
+  const { gl } = useThree();
   const {
     players,
     enemies,
@@ -223,25 +223,27 @@ function GameScene() {
   } = useGameStore();
 
   const lastFireTime = useRef(0);
-  const isTouching = useRef(false);
+  const mousePos = useRef({ x: 0, y: -4 });
 
-  // Game loop
+  // Game loop - always runs when playing
   useFrame((state, delta) => {
     if (isPlaying && !isPaused) {
+      // Update game state (spawns enemies, moves objects, etc.)
       updateGame(delta);
 
-      // Auto-fire when touching
-      if (isTouching.current) {
-        const fireRate = activePowerUps.rapidFire ? 100 : 200; // ms
-        if (Date.now() - lastFireTime.current > fireRate) {
-          fireBullet();
-          lastFireTime.current = Date.now();
-        }
+      // Always fire bullets continuously
+      const fireRate = activePowerUps.rapidFire ? 80 : 150; // ms
+      if (Date.now() - lastFireTime.current > fireRate) {
+        fireBullet();
+        lastFireTime.current = Date.now();
       }
+
+      // Always move player to cursor position
+      movePlayer(mousePos.current.x, mousePos.current.y);
     }
   });
 
-  // Touch/mouse controls
+  // Touch/mouse controls - always track position
   useEffect(() => {
     const canvas = gl.domElement;
 
@@ -255,48 +257,39 @@ function GameScene() {
       };
     };
 
-    const handleStart = (e: TouchEvent | MouseEvent) => {
+    // Mouse move - always track (no click required)
+    const handleMouseMove = (e: MouseEvent) => {
+      const pos = getGamePosition(e.clientX, e.clientY);
+      mousePos.current = pos;
+    };
+
+    // Touch move - always track
+    const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
-      isTouching.current = true;
-
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      const pos = getGamePosition(clientX, clientY);
-      movePlayer(pos.x, pos.y);
+      if (e.touches.length > 0) {
+        const pos = getGamePosition(e.touches[0].clientX, e.touches[0].clientY);
+        mousePos.current = pos;
+      }
     };
 
-    const handleMove = (e: TouchEvent | MouseEvent) => {
-      if (!isTouching.current) return;
+    const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
-
-      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-      const pos = getGamePosition(clientX, clientY);
-      movePlayer(pos.x, pos.y);
+      if (e.touches.length > 0) {
+        const pos = getGamePosition(e.touches[0].clientX, e.touches[0].clientY);
+        mousePos.current = pos;
+      }
     };
 
-    const handleEnd = () => {
-      isTouching.current = false;
-    };
-
-    canvas.addEventListener('touchstart', handleStart, { passive: false });
-    canvas.addEventListener('touchmove', handleMove, { passive: false });
-    canvas.addEventListener('touchend', handleEnd);
-    canvas.addEventListener('mousedown', handleStart);
-    canvas.addEventListener('mousemove', handleMove);
-    canvas.addEventListener('mouseup', handleEnd);
-    canvas.addEventListener('mouseleave', handleEnd);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+    canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     return () => {
-      canvas.removeEventListener('touchstart', handleStart);
-      canvas.removeEventListener('touchmove', handleMove);
-      canvas.removeEventListener('touchend', handleEnd);
-      canvas.removeEventListener('mousedown', handleStart);
-      canvas.removeEventListener('mousemove', handleMove);
-      canvas.removeEventListener('mouseup', handleEnd);
-      canvas.removeEventListener('mouseleave', handleEnd);
+      canvas.removeEventListener('mousemove', handleMouseMove);
+      canvas.removeEventListener('touchstart', handleTouchStart);
+      canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [gl, movePlayer]);
+  }, [gl]);
 
   return (
     <>
