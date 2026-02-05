@@ -3,25 +3,26 @@
 import { useEffect, useState, type ReactNode, createContext, useContext } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type FarcasterContext = any;
+interface FarcasterUser {
+  fid: number;
+  username?: string;
+  displayName?: string;
+  pfpUrl?: string;
+  custodyAddress?: string;
+}
 
 interface FarcasterContextType {
   isInMiniApp: boolean;
   isLoading: boolean;
-  context: FarcasterContext | null;
-  userFid: number | null;
-  userName: string | null;
-  userAvatar: string | null;
+  user: FarcasterUser | null;
+  connectWallet: () => Promise<void>;
 }
 
 const FarcasterContext = createContext<FarcasterContextType>({
   isInMiniApp: false,
   isLoading: true,
-  context: null,
-  userFid: null,
-  userName: null,
-  userAvatar: null,
+  user: null,
+  connectWallet: async () => {},
 });
 
 export const useFarcaster = () => useContext(FarcasterContext);
@@ -29,10 +30,7 @@ export const useFarcaster = () => useContext(FarcasterContext);
 export function FarcasterSDK({ children }: { children: ReactNode }) {
   const [isInMiniApp, setIsInMiniApp] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [context, setContext] = useState<FarcasterContext | null>(null);
-  const [userFid, setUserFid] = useState<number | null>(null);
-  const [userName, setUserName] = useState<string | null>(null);
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [user, setUser] = useState<FarcasterUser | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -42,15 +40,21 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
         console.log('Is in Mini App:', isMiniApp);
 
         if (isMiniApp) {
-          const ctx = await sdk.context;
-          setContext(ctx);
+          const context = await sdk.context;
+          console.log('Farcaster context:', context);
 
-          if (ctx?.user) {
-            setUserFid(ctx.user.fid);
-            setUserName(ctx.user.username || ctx.user.displayName || null);
-            setUserAvatar(ctx.user.pfpUrl || null);
+          if (context?.user) {
+            const userData = context.user as any;
+            setUser({
+              fid: userData.fid,
+              username: userData.username,
+              displayName: userData.displayName,
+              pfpUrl: userData.pfpUrl,
+              custodyAddress: userData.custodyAddress,
+            });
           }
 
+          // Important: ready() must be called to display Mini App
           sdk.actions.ready({});
         }
       } catch (error) {
@@ -67,10 +71,21 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
     load();
   }, []);
 
+  const connectWallet = async () => {
+    if (!isInMiniApp) return;
+
+    try {
+      const provider = await sdk.wallet.getEthereumProvider();
+      if (provider) {
+        (window as any).ethereum = provider;
+      }
+    } catch (error) {
+      console.error('Failed to get Farcaster wallet provider:', error);
+    }
+  };
+
   return (
-    <FarcasterContext.Provider
-      value={{ isInMiniApp, isLoading, context, userFid, userName, userAvatar }}
-    >
+    <FarcasterContext.Provider value={{ isInMiniApp, isLoading, user, connectWallet }}>
       {children}
     </FarcasterContext.Provider>
   );

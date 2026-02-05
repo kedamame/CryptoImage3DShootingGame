@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { AppProvider } from '@/components/providers/AppProvider';
 import './globals.css';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crypto-shooter.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crypto-shooting.vercel.app';
 
 const miniAppEmbed = {
   version: '1',
@@ -11,27 +11,21 @@ const miniAppEmbed = {
     title: 'Play Now!',
     action: {
       type: 'launch_miniapp',
-      name: 'CryptoShooter',
+      name: 'CryptoImageShootingGame',
       url: APP_URL,
       splashImageUrl: `${APP_URL}/splash.svg`,
-      splashBackgroundColor: '#0F0F1A',
+      splashBackgroundColor: '#1a1a2e',
     },
   },
 };
 
 export const metadata: Metadata = {
-  title: 'CryptoShooter - 3D Shooting Game',
-  description: 'A 3D shooting game where your wallet assets become enemies! Built for Farcaster Mini Apps.',
+  title: 'CryptoImageShootingGame',
+  description: 'Shoot your wallet tokens and NFTs in this fun 3D shooting game!',
   openGraph: {
-    title: 'CryptoShooter - 3D Shooting Game',
-    description: 'Your wallet assets become enemies in this action-packed 3D shooter!',
+    title: 'CryptoImageShootingGame',
+    description: 'Shoot your wallet tokens and NFTs in this fun 3D shooting game!',
     type: 'website',
-    images: ['/og-image.svg'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    title: 'CryptoShooter - 3D Shooting Game',
-    description: 'Your wallet assets become enemies in this action-packed 3D shooter!',
     images: ['/og-image.svg'],
   },
   other: {
@@ -44,8 +38,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0F0F1A',
-  viewportFit: 'cover',
+  themeColor: '#1a1a2e',
 };
 
 export default function RootLayout({
@@ -55,7 +48,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="safe-area-inset">
+      <body>
         <AppProvider>{children}</AppProvider>
       </body>
     </html>

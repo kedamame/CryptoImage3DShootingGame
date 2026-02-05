@@ -6,14 +6,14 @@
   },
   "miniapp": {
     "version": "1",
-    "name": "CryptoShooter",
+    "name": "CryptoImageShootingGame",
     "iconUrl": "https://YOUR_DOMAIN/icon.svg",
     "homeUrl": "https://YOUR_DOMAIN",
     "splashImageUrl": "https://YOUR_DOMAIN/splash.svg",
-    "splashBackgroundColor": "#0F0F1A",
+    "splashBackgroundColor": "#1a1a2e",
     "webhookUrl": "https://YOUR_DOMAIN/api/webhook",
-    "subtitle": "3D Shooting Game",
-    "description": "A 3D shooting game where your wallet assets become enemies! Collect power-ups, avoid obstacles, and compete for the highest score on the on-chain leaderboard.",
-    "primaryCategory": "games"
+    "subtitle": "Shoot your tokens!",
+    "description": "A fun 3D shooting game where your wallet tokens and NFTs become enemies! Collect power-ups, climb the leaderboard, and compete with friends.",
+    "primaryCategory": "entertainment"
   }
 }

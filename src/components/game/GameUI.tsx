@@ -1,337 +1,292 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
-import { sdk } from '@farcaster/miniapp-sdk';
-import { useFarcaster } from '@/components/FarcasterSDK';
-import {
-  getAllWalletAssets,
-  generateFallbackEnemies,
-  type WalletAsset,
-} from '@/lib/wallet-assets';
-import {
-  useTopScores,
-  useSubmitScore,
-  formatScore,
-  truncateAddress,
-  LEADERBOARD_CONTRACT_ADDRESS,
-} from '@/lib/leaderboard';
-import dynamic from 'next/dynamic';
-import type { Address } from 'viem';
+import { useGameStore } from '@/lib/game-engine';
+import { POWER_UP_COLORS } from '@/lib/game-types';
 
-// Dynamic import for Game3D to avoid SSR issues with Three.js
-const Game3D = dynamic(() => import('./Game3D'), { ssr: false });
-
-type GameScreen = 'menu' | 'loading' | 'game' | 'gameOver' | 'leaderboard';
-
-export default function GameUI() {
-  const [screen, setScreen] = useState<GameScreen>('menu');
-  const [walletAssets, setWalletAssets] = useState<WalletAsset[]>([]);
-  const [finalScore, setFinalScore] = useState(0);
-  const [isLoadingAssets, setIsLoadingAssets] = useState(false);
-
-  const { address, isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-  const { isInMiniApp, userAvatar, userName } = useFarcaster();
-
-  const { data: topScores, refetch: refetchScores } = useTopScores(10);
-  const { submitScore, isPending: isSubmitting, isSuccess: isSubmitted } = useSubmitScore();
-
-  // Connect wallet (different behavior for Mini App vs Web)
-  const handleConnect = useCallback(async () => {
-    if (isInMiniApp) {
-      try {
-        const provider = await sdk.wallet.getEthereumProvider();
-        if (provider) {
-          (window as unknown as { ethereum: typeof provider }).ethereum = provider;
-        }
-        const injectedConnector = connectors.find((c) => c.id === 'injected');
-        if (injectedConnector) {
-          connect({ connector: injectedConnector });
-        }
-      } catch (error) {
-        console.error('Failed to connect Farcaster wallet:', error);
-      }
-    } else {
-      // Show connector options for web
-      const coinbaseConnector = connectors.find((c) => c.id === 'coinbaseWalletSDK');
-      if (coinbaseConnector) {
-        connect({ connector: coinbaseConnector });
-      }
-    }
-  }, [isInMiniApp, connectors, connect]);
-
-  // Load wallet assets
-  const loadAssets = useCallback(async () => {
-    if (!address) {
-      setWalletAssets(generateFallbackEnemies());
-      return;
-    }
-
-    setIsLoadingAssets(true);
-    try {
-      const assets = await getAllWalletAssets(address);
-      if (assets.length === 0) {
-        setWalletAssets(generateFallbackEnemies());
-      } else {
-        setWalletAssets(assets);
-      }
-    } catch (error) {
-      console.error('Failed to load wallet assets:', error);
-      setWalletAssets(generateFallbackEnemies());
-    } finally {
-      setIsLoadingAssets(false);
-    }
-  }, [address]);
-
-  // Start game
-  const handleStartGame = useCallback(async () => {
-    setScreen('loading');
-    await loadAssets();
-    setScreen('game');
-  }, [loadAssets]);
-
-  // Game over handler
-  const handleGameOver = useCallback((score: number) => {
-    setFinalScore(score);
-    setScreen('gameOver');
-  }, []);
-
-  // Submit score to leaderboard
-  const handleSubmitScore = useCallback(() => {
-    if (!isConnected) return;
-    const displayName = userName || truncateAddress(address || '');
-    submitScore(finalScore, displayName);
-  }, [isConnected, finalScore, userName, address, submitScore]);
-
-  // Refetch scores when submitted
-  useEffect(() => {
-    if (isSubmitted) {
-      refetchScores();
-    }
-  }, [isSubmitted, refetchScores]);
-
-  const isContractDeployed = LEADERBOARD_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000';
+export function GameUI() {
+  const {
+    score,
+    lives,
+    isPlaying,
+    isPaused,
+    isGameOver,
+    activePowerUps,
+    extraShipCount,
+    startGame,
+    pauseGame,
+    resumeGame,
+  } = useGameStore();
 
   return (
-    <div className="w-full h-full bg-darker text-white overflow-hidden">
-      {/* Menu Screen */}
-      {screen === 'menu' && (
-        <div className="flex flex-col items-center justify-center h-full p-6 space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
-              CRYPTO
-            </h1>
-            <h1 className="text-5xl font-bold bg-gradient-to-r from-secondary via-purple to-primary bg-clip-text text-transparent">
-              SHOOTER
-            </h1>
-            <p className="text-gray-400 mt-4">
-              Your wallet assets become enemies!
-            </p>
+    <div className="absolute inset-0 pointer-events-none">
+      {/* Top HUD */}
+      {isPlaying && (
+        <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-auto">
+          {/* Score */}
+          <div className="game-panel">
+            <div className="text-pop-yellow text-xs mb-1">SCORE</div>
+            <div className="score-display">{score.toLocaleString()}</div>
           </div>
 
-          {/* Wallet Status */}
-          <div className="w-full max-w-xs">
-            {isConnected ? (
-              <div className="bg-dark rounded-xl p-4 space-y-3">
-                <div className="flex items-center gap-3">
-                  {userAvatar && (
-                    <img
-                      src={userAvatar}
-                      alt="Avatar"
-                      className="w-10 h-10 rounded-full"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-400">Connected</p>
-                    <p className="text-secondary font-mono text-sm truncate">
-                      {userName || truncateAddress(address || '')}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => disconnect()}
-                  className="w-full py-2 text-sm text-gray-400 hover:text-white transition-colors"
-                >
-                  Disconnect
-                </button>
+          {/* Lives & Power-ups */}
+          <div className="game-panel flex flex-col items-end gap-2">
+            <div className="flex gap-1">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className={`w-6 h-6 rounded ${
+                    i < lives ? 'bg-pop-red' : 'bg-pop-gray/50'
+                  }`}
+                  style={{
+                    clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)',
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Extra ships indicator */}
+            {extraShipCount > 0 && (
+              <div className="text-pop-pink text-xs">
+                +{extraShipCount} SHIPS
               </div>
-            ) : (
-              <button
-                onClick={handleConnect}
-                className="w-full py-4 bg-secondary text-dark font-bold rounded-xl hover:bg-secondary/80 transition-colors"
-              >
-                {isInMiniApp ? 'Connect Farcaster Wallet' : 'Connect Wallet'}
-              </button>
             )}
-          </div>
 
-          {/* Action Buttons */}
-          <div className="w-full max-w-xs space-y-3">
-            <button
-              onClick={handleStartGame}
-              className="w-full py-4 bg-gradient-to-r from-primary to-orange text-white text-xl font-bold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-primary/30"
-            >
-              🎮 START GAME
-            </button>
-
-            <button
-              onClick={() => setScreen('leaderboard')}
-              className="w-full py-3 bg-dark border-2 border-accent text-accent font-bold rounded-xl hover:bg-accent hover:text-dark transition-colors"
-            >
-              🏆 Leaderboard
-            </button>
-          </div>
-
-          {/* Info */}
-          <div className="text-center text-sm text-gray-500 mt-4">
-            <p>Touch to move • Auto-fire while touching</p>
-            <p className="mt-1">Collect items to power up!</p>
-          </div>
-        </div>
-      )}
-
-      {/* Loading Screen */}
-      {screen === 'loading' && (
-        <div className="flex flex-col items-center justify-center h-full p-6">
-          <div className="animate-spin w-16 h-16 border-4 border-secondary border-t-transparent rounded-full mb-4" />
-          <p className="text-xl text-secondary">Loading your assets...</p>
-          <p className="text-sm text-gray-400 mt-2">
-            {isLoadingAssets ? 'Fetching wallet data...' : 'Preparing game...'}
-          </p>
-        </div>
-      )}
-
-      {/* Game Screen */}
-      {screen === 'game' && (
-        <Game3D
-          walletAssets={walletAssets}
-          avatarUrl={userAvatar}
-          onGameOver={handleGameOver}
-        />
-      )}
-
-      {/* Game Over Screen */}
-      {screen === 'gameOver' && (
-        <div className="flex flex-col items-center justify-center h-full p-6 space-y-6">
-          <h2 className="text-4xl font-bold text-primary">GAME OVER</h2>
-
-          <div className="text-center">
-            <p className="text-gray-400">Your Score</p>
-            <p className="text-6xl font-bold text-accent mt-2">
-              {finalScore.toLocaleString()}
-            </p>
-          </div>
-
-          {/* Submit Score */}
-          {isConnected && isContractDeployed && (
-            <div className="w-full max-w-xs">
-              {!isSubmitted ? (
-                <button
-                  onClick={handleSubmitScore}
-                  disabled={isSubmitting}
-                  className="w-full py-4 bg-purple text-white font-bold rounded-xl hover:bg-purple/80 transition-colors disabled:opacity-50"
-                >
-                  {isSubmitting ? 'Submitting...' : '📤 Submit to Leaderboard'}
-                </button>
-              ) : (
-                <p className="text-center text-green py-4">
-                  ✅ Score submitted!
-                </p>
+            {/* Active power-ups */}
+            <div className="flex gap-1">
+              {activePowerUps.rapidFire && (
+                <div
+                  className="w-5 h-5 rounded animate-pulse"
+                  style={{ backgroundColor: POWER_UP_COLORS.rapid_fire }}
+                  title="Rapid Fire"
+                />
+              )}
+              {activePowerUps.shield && (
+                <div
+                  className="w-5 h-5 rounded animate-pulse"
+                  style={{ backgroundColor: POWER_UP_COLORS.shield }}
+                  title="Shield"
+                />
+              )}
+              {activePowerUps.scoreBoost && (
+                <div
+                  className="w-5 h-5 rounded animate-pulse"
+                  style={{ backgroundColor: POWER_UP_COLORS.score_boost }}
+                  title="Score Boost"
+                />
               )}
             </div>
-          )}
+          </div>
 
-          {!isContractDeployed && (
-            <p className="text-sm text-gray-500">
-              Leaderboard coming soon!
-            </p>
-          )}
+          {/* Pause button */}
+          <button
+            onClick={() => (isPaused ? resumeGame() : pauseGame())}
+            className="game-panel px-3 py-2 text-white text-sm hover:bg-pop-gray/50 transition-colors"
+          >
+            {isPaused ? '▶' : '⏸'}
+          </button>
+        </div>
+      )}
 
-          <div className="w-full max-w-xs space-y-3">
-            <button
-              onClick={handleStartGame}
-              className="w-full py-4 bg-gradient-to-r from-primary to-orange text-white text-xl font-bold rounded-xl hover:opacity-90 transition-opacity"
-            >
-              🔄 Play Again
-            </button>
-
-            <button
-              onClick={() => setScreen('menu')}
-              className="w-full py-3 bg-dark border border-gray-600 text-gray-300 font-bold rounded-xl hover:bg-gray-800 transition-colors"
-            >
-              🏠 Back to Menu
+      {/* Pause overlay */}
+      {isPaused && (
+        <div className="absolute inset-0 bg-black/70 flex items-center justify-center pointer-events-auto">
+          <div className="game-panel text-center p-8">
+            <h2 className="text-pop-yellow text-2xl mb-6">PAUSED</h2>
+            <button onClick={resumeGame} className="btn-pop">
+              RESUME
             </button>
           </div>
         </div>
       )}
 
-      {/* Leaderboard Screen */}
-      {screen === 'leaderboard' && (
-        <div className="flex flex-col h-full p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-3xl font-bold text-accent">🏆 Leaderboard</h2>
-            <button
-              onClick={() => setScreen('menu')}
-              className="p-2 text-gray-400 hover:text-white"
-            >
-              ✕
+      {/* Game Over overlay */}
+      {isGameOver && (
+        <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto">
+          <div className="game-panel text-center p-8 max-w-sm">
+            <h2 className="text-pop-red text-3xl mb-4">GAME OVER</h2>
+            <div className="text-pop-yellow text-xl mb-6">
+              SCORE: {score.toLocaleString()}
+            </div>
+            <button onClick={startGame} className="btn-pop">
+              PLAY AGAIN
             </button>
           </div>
+        </div>
+      )}
 
-          {!isContractDeployed ? (
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <p className="text-xl mb-2">Coming Soon!</p>
-                <p className="text-sm">
-                  On-chain leaderboard will be available after contract deployment
-                </p>
-              </div>
+      {/* Power-up legend (bottom) */}
+      {isPlaying && !isPaused && (
+        <div className="absolute bottom-4 left-4 right-4">
+          <div className="game-panel inline-flex gap-4 text-xs">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.extra_ship }} />
+              <span className="text-white/70">+Ship</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.rapid_fire }} />
+              <span className="text-white/70">Rapid</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.shield }} />
+              <span className="text-white/70">Shield</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.score_boost }} />
+              <span className="text-white/70">x2</span>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function StartScreen({
+  onStart,
+  isConnected,
+  onConnect,
+  isLoading,
+}: {
+  onStart: () => void;
+  isConnected: boolean;
+  onConnect: () => void;
+  isLoading: boolean;
+}) {
+  return (
+    <div className="absolute inset-0 bg-gradient-to-b from-pop-dark to-black flex items-center justify-center">
+      <div className="text-center p-8">
+        {/* Title */}
+        <h1 className="text-pop-yellow text-2xl md:text-4xl mb-2 font-game">
+          CRYPTO
+        </h1>
+        <h1 className="text-pop-orange text-xl md:text-3xl mb-8 font-game">
+          SHOOTING
+        </h1>
+
+        {/* Decorative ship */}
+        <div className="mb-8 flex justify-center">
+          <div className="relative">
+            <div className="w-16 h-20 bg-pop-blue rounded-lg float-animation" />
+            <div className="absolute -left-4 top-4 w-6 h-12 bg-pop-cyan rounded" />
+            <div className="absolute -right-4 top-4 w-6 h-12 bg-pop-cyan rounded" />
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-6 h-6 bg-pop-yellow rounded" />
+          </div>
+        </div>
+
+        {/* Instructions */}
+        <div className="game-panel mb-8 text-left text-xs text-white/80 space-y-2 max-w-xs mx-auto">
+          <p>🎮 Touch & drag to move</p>
+          <p>🔫 Auto-fire while touching</p>
+          <p>💎 Collect power-ups</p>
+          <p>🎯 Destroy your tokens!</p>
+        </div>
+
+        {/* Buttons */}
+        {isLoading ? (
+          <div className="text-pop-yellow loading-pulse">Loading...</div>
+        ) : isConnected ? (
+          <button onClick={onStart} className="btn-pop text-lg">
+            START GAME
+          </button>
+        ) : (
+          <div className="space-y-4">
+            <button onClick={onConnect} className="btn-pop">
+              CONNECT WALLET
+            </button>
+            <div className="text-white/50 text-xs">or</div>
+            <button
+              onClick={onStart}
+              className="btn-pop bg-gradient-to-b from-pop-gray to-pop-dark"
+            >
+              DEMO MODE
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function LeaderboardUI({
+  scores,
+  isOpen,
+  onClose,
+  currentScore,
+}: {
+  scores: { address: string; score: number; timestamp: number }[];
+  isOpen: boolean;
+  onClose: () => void;
+  currentScore?: number;
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="absolute inset-0 bg-black/80 flex items-center justify-center pointer-events-auto z-50">
+      <div className="game-panel p-6 max-w-md w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-pop-yellow text-xl">LEADERBOARD</h2>
+          <button
+            onClick={onClose}
+            className="text-white/70 hover:text-white text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {currentScore !== undefined && (
+          <div className="mb-4 p-3 bg-pop-purple/20 rounded-lg text-center">
+            <div className="text-pop-purple text-xs">YOUR SCORE</div>
+            <div className="text-pop-yellow text-2xl">
+              {currentScore.toLocaleString()}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          {scores.length === 0 ? (
+            <div className="text-white/50 text-center py-8">
+              No scores yet. Be the first!
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {topScores?.map((entry, index) => (
-                <div
-                  key={index}
-                  className="flex items-center gap-4 bg-dark rounded-xl p-4"
-                >
-                  <div
-                    className={`w-10 h-10 flex items-center justify-center rounded-full font-bold ${
+            scores.map((entry, index) => (
+              <div
+                key={`${entry.address}-${entry.timestamp}`}
+                className={`flex items-center justify-between p-3 rounded-lg ${
+                  index === 0
+                    ? 'bg-pop-yellow/20'
+                    : index === 1
+                    ? 'bg-pop-gray/30'
+                    : index === 2
+                    ? 'bg-pop-orange/20'
+                    : 'bg-pop-dark/50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span
+                    className={`text-lg font-bold ${
                       index === 0
-                        ? 'bg-accent text-dark'
+                        ? 'text-pop-yellow'
                         : index === 1
-                        ? 'bg-gray-300 text-dark'
+                        ? 'text-white/70'
                         : index === 2
-                        ? 'bg-orange text-dark'
-                        : 'bg-gray-700 text-white'
+                        ? 'text-pop-orange'
+                        : 'text-white/50'
                     }`}
                   >
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold truncate">
-                      {entry.username || truncateAddress(entry.player)}
-                    </p>
-                    <p className="text-sm text-gray-400">
-                      {truncateAddress(entry.player)}
-                    </p>
-                  </div>
-                  <p className="text-xl font-bold text-secondary">
-                    {formatScore(entry.score)}
-                  </p>
+                    #{index + 1}
+                  </span>
+                  <span className="text-white text-sm truncate max-w-[120px]">
+                    {entry.address.slice(0, 6)}...{entry.address.slice(-4)}
+                  </span>
                 </div>
-              ))}
-
-              {(!topScores || topScores.length === 0) && (
-                <div className="text-center text-gray-400 py-10">
-                  <p>No scores yet. Be the first!</p>
-                </div>
-              )}
-            </div>
+                <span className="text-pop-yellow font-bold">
+                  {entry.score.toLocaleString()}
+                </span>
+              </div>
+            ))
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

@@ -10,34 +10,24 @@ const config: Config = {
     extend: {
       colors: {
         // Unrailed-inspired pop colors
-        primary: '#FF6B6B',    // Coral red
-        secondary: '#4ECDC4',  // Teal
-        accent: '#FFE66D',     // Yellow
-        purple: '#A855F7',     // Purple
-        blue: '#3B82F6',       // Blue
-        green: '#22C55E',      // Green
-        orange: '#F97316',     // Orange
-        pink: '#EC4899',       // Pink
-        dark: '#1A1A2E',       // Dark background
-        darker: '#0F0F1A',     // Darker background
+        'pop-yellow': '#FFD93D',
+        'pop-orange': '#FF8C42',
+        'pop-red': '#FF6B6B',
+        'pop-pink': '#FF9FF3',
+        'pop-purple': '#A66CFF',
+        'pop-blue': '#6ECBFF',
+        'pop-cyan': '#54E6CB',
+        'pop-green': '#6BCB77',
+        'pop-lime': '#C9E265',
+        'pop-brown': '#8B7355',
+        'pop-gray': '#5C5C5C',
+        'pop-dark': '#2D2D2D',
       },
       fontFamily: {
-        game: ['system-ui', 'sans-serif'],
-      },
-      animation: {
-        'pulse-fast': 'pulse 0.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'bounce-slow': 'bounce 2s infinite',
-        'float': 'float 3s ease-in-out infinite',
-      },
-      keyframes: {
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
+        game: ['Press Start 2P', 'monospace'],
       },
     },
   },
   plugins: [],
 };
-
 export default config;

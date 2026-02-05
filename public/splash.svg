@@ -1,45 +1,74 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0F0F1A"/>
-      <stop offset="100%" style="stop-color:#1A1A2E"/>
-    </linearGradient>
-    <linearGradient id="title1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#FF6B6B"/>
-      <stop offset="50%" style="stop-color:#FFE66D"/>
-      <stop offset="100%" style="stop-color:#4ECDC4"/>
-    </linearGradient>
-    <linearGradient id="title2" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#4ECDC4"/>
-      <stop offset="50%" style="stop-color:#A855F7"/>
-      <stop offset="100%" style="stop-color:#FF6B6B"/>
+    <linearGradient id="splashBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="50%" style="stop-color:#16213e"/>
+      <stop offset="100%" style="stop-color:#0f3460"/>
     </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="600" height="800" fill="url(#splashBg)"/>
 
-  <!-- Stars -->
-  <circle cx="100" cy="100" r="2" fill="#fff" opacity="0.5"/>
-  <circle cx="200" cy="500" r="3" fill="#fff" opacity="0.4"/>
-  <circle cx="400" cy="150" r="2" fill="#fff" opacity="0.6"/>
-  <circle cx="800" cy="80" r="3" fill="#fff" opacity="0.5"/>
-  <circle cx="1000" cy="200" r="2" fill="#fff" opacity="0.4"/>
-  <circle cx="1100" cy="450" r="3" fill="#fff" opacity="0.5"/>
-  <circle cx="150" cy="350" r="2" fill="#fff" opacity="0.3"/>
-  <circle cx="950" cy="550" r="2" fill="#fff" opacity="0.4"/>
+  <!-- Grid lines -->
+  <g stroke="#2D2D2D" stroke-width="1" opacity="0.5">
+    <line x1="0" y1="100" x2="600" y2="100"/>
+    <line x1="0" y1="200" x2="600" y2="200"/>
+    <line x1="0" y1="300" x2="600" y2="300"/>
+    <line x1="0" y1="400" x2="600" y2="400"/>
+    <line x1="0" y1="500" x2="600" y2="500"/>
+    <line x1="0" y1="600" x2="600" y2="600"/>
+    <line x1="0" y1="700" x2="600" y2="700"/>
+    <line x1="100" y1="0" x2="100" y2="800"/>
+    <line x1="200" y1="0" x2="200" y2="800"/>
+    <line x1="300" y1="0" x2="300" y2="800"/>
+    <line x1="400" y1="0" x2="400" y2="800"/>
+    <line x1="500" y1="0" x2="500" y2="800"/>
+  </g>
+
+  <!-- Main ship -->
+  <g transform="translate(250, 450)">
+    <rect x="0" y="0" width="100" height="130" rx="10" fill="#6ECBFF"/>
+    <rect x="-50" y="30" width="40" height="70" rx="5" fill="#54E6CB"/>
+    <rect x="110" y="30" width="40" height="70" rx="5" fill="#54E6CB"/>
+    <rect x="30" y="15" width="40" height="40" rx="5" fill="#FFD93D"/>
+  </g>
+
+  <!-- Flying bullets -->
+  <rect x="275" y="350" width="12" height="35" rx="3" fill="#FFD93D">
+    <animate attributeName="y" values="350;100;350" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;0.5;1" dur="2s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="313" y="320" width="12" height="35" rx="3" fill="#FF8C42">
+    <animate attributeName="y" values="320;70;320" dur="1.8s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="1;0.5;1" dur="1.8s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Enemy tokens -->
+  <rect x="100" y="150" width="70" height="70" rx="8" fill="#FF6B6B" opacity="0.9">
+    <animate attributeName="y" values="150;200;150" dur="3s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="430" y="200" width="60" height="60" rx="8" fill="#A66CFF" opacity="0.9">
+    <animate attributeName="y" values="200;250;200" dur="2.5s" repeatCount="indefinite"/>
+  </rect>
+  <rect x="250" y="100" width="80" height="80" rx="8" fill="#FF9FF3" opacity="0.9">
+    <animate attributeName="y" values="100;150;100" dur="2.8s" repeatCount="indefinite"/>
+  </rect>
+
+  <!-- Power-ups -->
+  <polygon points="520,400 535,430 565,430 540,450 550,480 520,460 490,480 500,450 475,430 505,430" fill="#FFD93D" opacity="0.8">
+    <animate attributeName="transform" values="rotate(0 520 440);rotate(360 520 440)" dur="4s" repeatCount="indefinite"/>
+  </polygon>
+  <polygon points="80,500 95,530 125,530 100,550 110,580 80,560 50,580 60,550 35,530 65,530" fill="#6ECBFF" opacity="0.8">
+    <animate attributeName="transform" values="rotate(0 80 540);rotate(360 80 540)" dur="3.5s" repeatCount="indefinite"/>
+  </polygon>
 
   <!-- Title -->
-  <text x="600" y="250" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="url(#title1)" text-anchor="middle">CRYPTO</text>
-  <text x="600" y="360" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="url(#title2)" text-anchor="middle">SHOOTER</text>
-
-  <!-- Subtitle -->
-  <text x="600" y="450" font-family="Arial, sans-serif" font-size="28" fill="#4ECDC4" text-anchor="middle">Your wallet assets become enemies!</text>
+  <text x="300" y="700" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="32" fill="#FFD93D">CRYPTO</text>
+  <text x="300" y="745" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="28" fill="#FF8C42">SHOOTING</text>
 
   <!-- Loading indicator -->
-  <g transform="translate(600, 530)">
-    <circle cx="-30" cy="0" r="8" fill="#FF6B6B"/>
-    <circle cx="0" cy="0" r="8" fill="#FFE66D"/>
-    <circle cx="30" cy="0" r="8" fill="#4ECDC4"/>
-  </g>
+  <circle cx="300" cy="780" r="5" fill="#6ECBFF">
+    <animate attributeName="opacity" values="1;0.3;1" dur="1s" repeatCount="indefinite"/>
+  </circle>
 </svg>

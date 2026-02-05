@@ -1,5 +1,5 @@
 {
-  "name": "crypto-image-3d-shooting-game",
+  "name": "crypto-image-shooting-game",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,21 +10,22 @@
   },
   "dependencies": {
     "@farcaster/miniapp-sdk": "^0.1.0",
-    "@react-three/drei": "^9.97.0",
-    "@react-three/fiber": "^8.15.0",
     "@tanstack/react-query": "^5.56.0",
-    "next": "^14.2.0",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "three": "^0.161.0",
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "three": "^0.160.0",
+    "@react-three/fiber": "^8.15.0",
+    "@react-three/drei": "^9.88.0",
     "viem": "^2.21.0",
-    "wagmi": "^2.12.0"
+    "wagmi": "^2.12.0",
+    "zustand": "^4.5.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
-    "@types/three": "^0.161.0",
+    "@types/three": "^0.160.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "tailwindcss": "^3.4.0",

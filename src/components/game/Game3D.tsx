@@ -1,551 +1,382 @@
 'use client';
 
-import { useRef, useEffect, useState, useCallback, Suspense } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
-import { OrbitControls, Text, useTexture, Billboard } from '@react-three/drei';
+import { OrthographicCamera, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import {
-  type GameState,
-  type Enemy,
-  type Obstacle,
-  type DropItem,
-  type PlayerShip,
-  type Bullet,
-  GAME_CONFIG,
-  createInitialGameState,
-  generateId,
-} from '@/lib/game-types';
-import {
-  updateGameState,
-  spawnEnemy,
-  spawnObstacle,
-  createBullet,
-} from '@/lib/game-engine';
-import type { WalletAsset } from '@/lib/wallet-assets';
+import { useGameStore } from '@/lib/game-engine';
+import { POP_COLORS, BLOCK_COLORS, POWER_UP_COLORS, type PowerUpType } from '@/lib/game-types';
 
-// Player Ship Component
-function PlayerShipMesh({
-  ship,
-  avatarUrl,
-  isInvincible,
+// Voxel-style box component
+function VoxelBox({
+  position,
+  size = 1,
+  color
 }: {
-  ship: PlayerShip;
-  avatarUrl: string | null;
-  isInvincible: boolean;
+  position: [number, number, number];
+  size?: number;
+  color: string;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
-
-  useEffect(() => {
-    if (avatarUrl) {
-      const loader = new THREE.TextureLoader();
-      loader.crossOrigin = 'anonymous';
-      loader.load(
-        avatarUrl,
-        (tex) => setTexture(tex),
-        undefined,
-        () => setTexture(null)
-      );
-    }
-  }, [avatarUrl]);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      // Bobbing animation
-      meshRef.current.position.z = Math.sin(state.clock.elapsedTime * 3) * 0.1;
-      // Invincibility flash
-      if (isInvincible) {
-        meshRef.current.visible = Math.floor(state.clock.elapsedTime * 10) % 2 === 0;
-      } else {
-        meshRef.current.visible = true;
-      }
-    }
-  });
-
   return (
-    <group position={[ship.position.x, ship.position.y, ship.position.z]}>
-      {/* Ship body */}
-      <mesh ref={meshRef}>
-        <coneGeometry args={[0.5, 1.2, 6]} />
-        <meshStandardMaterial color="#4ECDC4" metalness={0.6} roughness={0.3} />
-      </mesh>
-      {/* Avatar display */}
-      {texture && (
-        <Billboard position={[0, 0.3, 0.6]}>
-          <mesh>
-            <circleGeometry args={[0.35, 32]} />
-            <meshBasicMaterial map={texture} />
-          </mesh>
-        </Billboard>
-      )}
-      {/* Engine glow */}
-      <mesh position={[0, -0.7, 0]}>
-        <sphereGeometry args={[0.2, 16, 16]} />
-        <meshBasicMaterial color="#FFE66D" />
-      </mesh>
-      <pointLight position={[0, -0.7, 0]} color="#FFE66D" intensity={1} distance={2} />
-    </group>
-  );
-}
-
-// Enemy Component
-function EnemyMesh({ enemy }: { enemy: Enemy }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const [texture, setTexture] = useState<THREE.Texture | null>(null);
-
-  useEffect(() => {
-    const imageUrl = enemy.asset.imageUrl;
-    if (imageUrl) {
-      const loader = new THREE.TextureLoader();
-      loader.crossOrigin = 'anonymous';
-      loader.load(
-        imageUrl,
-        (tex) => setTexture(tex),
-        undefined,
-        () => setTexture(null)
-      );
-    }
-  }, [enemy.asset.imageUrl]);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = state.clock.elapsedTime * 2;
-      meshRef.current.rotation.z = Math.sin(state.clock.elapsedTime * 3) * 0.1;
-    }
-  });
-
-  const healthPercent = enemy.health / enemy.maxHealth;
-
-  return (
-    <group position={[enemy.position.x, enemy.position.y, enemy.position.z]}>
-      {/* Enemy body - cube with rounded edges feel */}
-      <mesh ref={meshRef}>
-        <boxGeometry args={[1, 1, 0.5]} />
-        <meshStandardMaterial
-          color={enemy.asset.type === 'nft' ? '#A855F7' : '#FF6B6B'}
-          metalness={0.4}
-          roughness={0.4}
-        />
-      </mesh>
-      {/* Asset image */}
-      {texture && (
-        <Billboard position={[0, 0, 0.3]}>
-          <mesh>
-            <planeGeometry args={[0.8, 0.8]} />
-            <meshBasicMaterial map={texture} transparent />
-          </mesh>
-        </Billboard>
-      )}
-      {/* Health bar */}
-      <group position={[0, 0.8, 0]}>
-        <mesh position={[0, 0, 0]}>
-          <boxGeometry args={[1, 0.1, 0.05]} />
-          <meshBasicMaterial color="#333" />
-        </mesh>
-        <mesh position={[(healthPercent - 1) * 0.5, 0, 0.03]}>
-          <boxGeometry args={[healthPercent, 0.08, 0.05]} />
-          <meshBasicMaterial color="#22C55E" />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
-// Obstacle Component
-function ObstacleMesh({ obstacle }: { obstacle: Obstacle }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.x = state.clock.elapsedTime;
-      meshRef.current.rotation.y = state.clock.elapsedTime * 0.7;
-    }
-  });
-
-  const healthPercent = obstacle.health / obstacle.maxHealth;
-
-  return (
-    <group position={[obstacle.position.x, obstacle.position.y, obstacle.position.z]}>
-      <mesh ref={meshRef}>
-        <boxGeometry args={[obstacle.size.x, obstacle.size.y, obstacle.size.z]} />
-        <meshStandardMaterial
-          color={obstacle.color}
-          metalness={0.3}
-          roughness={0.7}
-          opacity={0.5 + healthPercent * 0.5}
-          transparent
-        />
-      </mesh>
-      {/* Outline effect */}
-      <mesh ref={meshRef} scale={1.05}>
-        <boxGeometry args={[obstacle.size.x, obstacle.size.y, obstacle.size.z]} />
-        <meshBasicMaterial color="#fff" wireframe />
-      </mesh>
-    </group>
-  );
-}
-
-// Bullet Component
-function BulletMesh({ bullet }: { bullet: Bullet }) {
-  return (
-    <mesh position={[bullet.position.x, bullet.position.y, bullet.position.z]}>
-      <sphereGeometry args={[0.15, 8, 8]} />
-      <meshBasicMaterial color={bullet.isPlayerBullet ? '#FFE66D' : '#FF6B6B'} />
-      <pointLight
-        color={bullet.isPlayerBullet ? '#FFE66D' : '#FF6B6B'}
-        intensity={0.5}
-        distance={1}
-      />
+    <mesh position={position} castShadow receiveShadow>
+      <boxGeometry args={[size, size, size]} />
+      <meshStandardMaterial color={color} flatShading />
     </mesh>
   );
 }
 
-// Drop Item Component
-function DropItemMesh({ item }: { item: DropItem }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const color = GAME_CONFIG.ITEM_COLORS[item.itemType];
+// Player ship (voxel style)
+function PlayerShip({
+  position,
+  isMain,
+  avatarUrl,
+  hasShield
+}: {
+  position: [number, number, number];
+  isMain: boolean;
+  avatarUrl?: string | null;
+  hasShield: boolean;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const shieldRef = useRef<THREE.Mesh>(null);
 
   useFrame((state) => {
-    if (meshRef.current) {
-      meshRef.current.rotation.y = state.clock.elapsedTime * 3;
-      meshRef.current.position.z = Math.sin(state.clock.elapsedTime * 5) * 0.2;
+    if (groupRef.current) {
+      // Slight floating animation
+      groupRef.current.position.z = Math.sin(state.clock.elapsedTime * 3) * 0.05;
+    }
+    if (shieldRef.current && hasShield) {
+      shieldRef.current.rotation.y += 0.02;
+      shieldRef.current.rotation.z += 0.01;
     }
   });
 
-  const getItemShape = () => {
-    switch (item.itemType) {
-      case 'extraShip':
-        return <octahedronGeometry args={[0.4]} />;
-      case 'speedUp':
-        return <coneGeometry args={[0.3, 0.6, 4]} />;
-      case 'shield':
-        return <torusGeometry args={[0.3, 0.1, 8, 16]} />;
-      case 'rapidFire':
-        return <cylinderGeometry args={[0.15, 0.15, 0.6, 8]} />;
-      case 'scoreMultiplier':
-        return <dodecahedronGeometry args={[0.35]} />;
-      default:
-        return <sphereGeometry args={[0.3]} />;
-    }
-  };
-
   return (
-    <group position={[item.position.x, item.position.y, item.position.z]}>
-      <mesh ref={meshRef}>
-        {getItemShape()}
-        <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} emissive={color} emissiveIntensity={0.3} />
+    <group ref={groupRef} position={position}>
+      {/* Main body */}
+      <mesh castShadow>
+        <boxGeometry args={[0.8, 1, 0.4]} />
+        <meshStandardMaterial color={isMain ? '#6ECBFF' : '#FF9FF3'} flatShading />
       </mesh>
-      <pointLight color={color} intensity={1} distance={2} />
+      {/* Wings */}
+      <mesh position={[-0.6, -0.1, 0]} castShadow>
+        <boxGeometry args={[0.4, 0.6, 0.2]} />
+        <meshStandardMaterial color={isMain ? '#54E6CB' : '#A66CFF'} flatShading />
+      </mesh>
+      <mesh position={[0.6, -0.1, 0]} castShadow>
+        <boxGeometry args={[0.4, 0.6, 0.2]} />
+        <meshStandardMaterial color={isMain ? '#54E6CB' : '#A66CFF'} flatShading />
+      </mesh>
+      {/* Cockpit */}
+      <mesh position={[0, 0.2, 0.15]} castShadow>
+        <boxGeometry args={[0.4, 0.4, 0.2]} />
+        <meshStandardMaterial color="#FFD93D" flatShading />
+      </mesh>
+      {/* Shield effect */}
+      {hasShield && (
+        <mesh ref={shieldRef}>
+          <sphereGeometry args={[1.2, 8, 8]} />
+          <meshStandardMaterial
+            color="#6ECBFF"
+            transparent
+            opacity={0.3}
+            wireframe
+          />
+        </mesh>
+      )}
     </group>
   );
 }
 
-// Background stars
-function Stars() {
-  const starsRef = useRef<THREE.Points>(null);
-  const [positions] = useState(() => {
-    const pos = new Float32Array(500 * 3);
-    for (let i = 0; i < 500; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * 30;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 40;
-      pos[i * 3 + 2] = -5 - Math.random() * 10;
+// Enemy component with token/NFT image
+function Enemy({
+  position,
+  size,
+  imageUrl,
+  health,
+  maxHealth,
+  isBlock
+}: {
+  position: [number, number, number];
+  size: number;
+  imageUrl: string;
+  health: number;
+  maxHealth: number;
+  isBlock: boolean;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const color = useMemo(() => {
+    if (isBlock) {
+      return BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
     }
-    return pos;
+    return POP_COLORS[Math.floor(Math.random() * POP_COLORS.length)];
+  }, [isBlock]);
+
+  useFrame((state) => {
+    if (meshRef.current && !isBlock) {
+      meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2) * 0.3;
+      meshRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.5) * 0.1;
+    }
   });
 
-  useFrame(() => {
-    if (starsRef.current) {
-      starsRef.current.rotation.z += 0.0002;
-    }
-  });
+  const healthPercent = health / maxHealth;
 
   return (
-    <points ref={starsRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-      </bufferGeometry>
-      <pointsMaterial size={0.1} color="#fff" transparent opacity={0.8} />
-    </points>
+    <group position={position}>
+      <mesh ref={meshRef} castShadow>
+        <boxGeometry args={[size, size, size * 0.6]} />
+        <meshStandardMaterial
+          color={color}
+          flatShading
+          opacity={0.5 + healthPercent * 0.5}
+          transparent
+        />
+      </mesh>
+      {/* Health indicator */}
+      {health < maxHealth && (
+        <mesh position={[0, size * 0.7, 0]}>
+          <boxGeometry args={[size * healthPercent, 0.1, 0.1]} />
+          <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
+        </mesh>
+      )}
+    </group>
   );
 }
 
-// Game Scene
-function GameScene({
-  gameState,
-  avatarUrl,
+// Bullet component
+function Bullet({ position }: { position: [number, number, number] }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.rotation.z += 0.1;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <boxGeometry args={[0.15, 0.4, 0.15]} />
+      <meshStandardMaterial color="#FFD93D" emissive="#FF8C42" emissiveIntensity={0.5} />
+    </mesh>
+  );
+}
+
+// Power-up component
+function PowerUpItem({
+  position,
+  type
 }: {
-  gameState: GameState;
-  avatarUrl: string | null;
+  position: [number, number, number];
+  type: PowerUpType;
 }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  const color = POWER_UP_COLORS[type];
+
+  useFrame((state) => {
+    if (meshRef.current) {
+      meshRef.current.rotation.y += 0.03;
+      meshRef.current.position.z = Math.sin(state.clock.elapsedTime * 4) * 0.1;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={meshRef}>
+        <octahedronGeometry args={[0.4]} />
+        <meshStandardMaterial
+          color={color}
+          emissive={color}
+          emissiveIntensity={0.3}
+          flatShading
+        />
+      </mesh>
+      {/* Glow effect */}
+      <pointLight color={color} intensity={0.5} distance={2} />
+    </group>
+  );
+}
+
+// Background grid
+function BackgroundGrid() {
+  return (
+    <group position={[0, 0, -3]}>
+      <gridHelper args={[30, 30, '#2D2D2D', '#1a1a2e']} rotation={[Math.PI / 2, 0, 0]} />
+    </group>
+  );
+}
+
+// Game scene
+function GameScene() {
+  const { camera, gl } = useThree();
+  const {
+    players,
+    enemies,
+    bullets,
+    powerUps,
+    isPlaying,
+    isPaused,
+    activePowerUps,
+    playerAvatar,
+    movePlayer,
+    fireBullet,
+    updateGame,
+  } = useGameStore();
+
+  const lastFireTime = useRef(0);
+  const isTouching = useRef(false);
+
+  // Game loop
+  useFrame((state, delta) => {
+    if (isPlaying && !isPaused) {
+      updateGame(delta);
+
+      // Auto-fire when touching
+      if (isTouching.current) {
+        const fireRate = activePowerUps.rapidFire ? 100 : 200; // ms
+        if (Date.now() - lastFireTime.current > fireRate) {
+          fireBullet();
+          lastFireTime.current = Date.now();
+        }
+      }
+    }
+  });
+
+  // Touch/mouse controls
+  useEffect(() => {
+    const canvas = gl.domElement;
+
+    const getGamePosition = (clientX: number, clientY: number) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
+      return {
+        x: x * 9,
+        y: y * 6 - 2,
+      };
+    };
+
+    const handleStart = (e: TouchEvent | MouseEvent) => {
+      e.preventDefault();
+      isTouching.current = true;
+
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const pos = getGamePosition(clientX, clientY);
+      movePlayer(pos.x, pos.y);
+    };
+
+    const handleMove = (e: TouchEvent | MouseEvent) => {
+      if (!isTouching.current) return;
+      e.preventDefault();
+
+      const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+      const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+      const pos = getGamePosition(clientX, clientY);
+      movePlayer(pos.x, pos.y);
+    };
+
+    const handleEnd = () => {
+      isTouching.current = false;
+    };
+
+    canvas.addEventListener('touchstart', handleStart, { passive: false });
+    canvas.addEventListener('touchmove', handleMove, { passive: false });
+    canvas.addEventListener('touchend', handleEnd);
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('mouseleave', handleEnd);
+
+    return () => {
+      canvas.removeEventListener('touchstart', handleStart);
+      canvas.removeEventListener('touchmove', handleMove);
+      canvas.removeEventListener('touchend', handleEnd);
+      canvas.removeEventListener('mousedown', handleStart);
+      canvas.removeEventListener('mousemove', handleMove);
+      canvas.removeEventListener('mouseup', handleEnd);
+      canvas.removeEventListener('mouseleave', handleEnd);
+    };
+  }, [gl, movePlayer]);
+
   return (
     <>
+      {/* Isometric-style camera */}
+      <OrthographicCamera
+        makeDefault
+        position={[0, -5, 15]}
+        zoom={40}
+        rotation={[0.3, 0, 0]}
+      />
+
       {/* Lighting */}
-      <ambientLight intensity={0.4} />
-      <directionalLight position={[5, 10, 5]} intensity={0.8} />
-      <pointLight position={[0, 0, 5]} intensity={0.5} color="#4ECDC4" />
+      <ambientLight intensity={0.6} />
+      <directionalLight
+        position={[5, 10, 5]}
+        intensity={1}
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <pointLight position={[-5, 5, 5]} intensity={0.5} color="#FF9FF3" />
+      <pointLight position={[5, 5, 5]} intensity={0.5} color="#6ECBFF" />
 
       {/* Background */}
-      <Stars />
-      <color attach="background" args={['#0F0F1A']} />
+      <BackgroundGrid />
 
-      {/* Player ships */}
-      {gameState.playerShips.map((ship) => (
-        <PlayerShipMesh
-          key={ship.id}
-          ship={ship}
-          avatarUrl={avatarUrl}
-          isInvincible={gameState.player.isInvincible}
+      {/* Players */}
+      {players.map((player) => (
+        <PlayerShip
+          key={player.id}
+          position={[player.position.x, player.position.y, player.position.z]}
+          isMain={player.isMain}
+          avatarUrl={player.isMain ? playerAvatar : null}
+          hasShield={activePowerUps.shield}
+        />
+      ))}
+
+      {/* Enemies */}
+      {enemies.map((enemy) => (
+        <Enemy
+          key={enemy.id}
+          position={[enemy.position.x, enemy.position.y, enemy.position.z]}
+          size={enemy.size}
+          imageUrl={enemy.asset.imageUrl}
+          health={enemy.health}
+          maxHealth={enemy.maxHealth}
+          isBlock={enemy.isBlock}
         />
       ))}
 
       {/* Bullets */}
-      {gameState.bullets.map((bullet) => (
-        <BulletMesh key={bullet.id} bullet={bullet} />
+      {bullets.map((bullet) => (
+        <Bullet
+          key={bullet.id}
+          position={[bullet.position.x, bullet.position.y, bullet.position.z]}
+        />
       ))}
 
-      {/* Enemies */}
-      {gameState.enemies.map((enemy) => (
-        <EnemyMesh key={enemy.id} enemy={enemy} />
+      {/* Power-ups */}
+      {powerUps.map((powerUp) => (
+        <PowerUpItem
+          key={powerUp.id}
+          position={[powerUp.position.x, powerUp.position.y, powerUp.position.z]}
+          type={powerUp.type}
+        />
       ))}
-
-      {/* Obstacles */}
-      {gameState.obstacles.map((obstacle) => (
-        <ObstacleMesh key={obstacle.id} obstacle={obstacle} />
-      ))}
-
-      {/* Drop Items */}
-      {gameState.dropItems.map((item) => (
-        <DropItemMesh key={item.id} item={item} />
-      ))}
-
-      {/* Game boundary visualization */}
-      <mesh position={[0, 0, -1]} receiveShadow>
-        <planeGeometry args={[GAME_CONFIG.GAME_WIDTH, GAME_CONFIG.GAME_HEIGHT]} />
-        <meshStandardMaterial color="#1A1A2E" transparent opacity={0.5} />
-      </mesh>
     </>
   );
 }
 
-// Main Game Component
-interface Game3DProps {
-  walletAssets: WalletAsset[];
-  avatarUrl: string | null;
-  onGameOver: (score: number) => void;
-}
-
-export default function Game3D({ walletAssets, avatarUrl, onGameOver }: Game3DProps) {
-  const [gameState, setGameState] = useState<GameState>(() =>
-    createInitialGameState(walletAssets)
-  );
-  const [touchPosition, setTouchPosition] = useState<{ x: number; y: number } | null>(null);
-  const [isTouching, setIsTouching] = useState(false);
-  const lastFireTime = useRef(0);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  // Convert screen coordinates to game coordinates
-  const screenToGame = useCallback((clientX: number, clientY: number) => {
-    if (!canvasRef.current) return null;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    const y = -(((clientY - rect.top) / rect.height) * 2 - 1);
-    return {
-      x: x * (GAME_CONFIG.GAME_WIDTH / 2),
-      y: y * (GAME_CONFIG.GAME_HEIGHT / 2),
-    };
-  }, []);
-
-  // Touch/Mouse handlers
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      setIsTouching(true);
-      const pos = screenToGame(e.clientX, e.clientY);
-      if (pos) setTouchPosition(pos);
-    },
-    [screenToGame]
-  );
-
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (isTouching) {
-        const pos = screenToGame(e.clientX, e.clientY);
-        if (pos) setTouchPosition(pos);
-      }
-    },
-    [isTouching, screenToGame]
-  );
-
-  const handlePointerUp = useCallback(() => {
-    setIsTouching(false);
-  }, []);
-
-  // Start game
-  const startGame = useCallback(() => {
-    setGameState((prev) => ({
-      ...createInitialGameState(walletAssets),
-      status: 'playing',
-    }));
-  }, [walletAssets]);
-
-  // Game loop
-  useEffect(() => {
-    if (gameState.status !== 'playing') return;
-
-    const gameLoop = setInterval(() => {
-      const currentTime = Date.now();
-
-      setGameState((prev) => {
-        let newState = updateGameState(prev, 16, currentTime, touchPosition, isTouching);
-
-        // Spawn enemies
-        if (currentTime - newState.lastSpawnTime > GAME_CONFIG.ENEMY_SPAWN_INTERVAL / newState.difficulty) {
-          const enemy = spawnEnemy(newState);
-          if (enemy) {
-            newState = {
-              ...newState,
-              enemies: [...newState.enemies, enemy],
-              lastSpawnTime: currentTime,
-            };
-          }
-        }
-
-        // Spawn obstacles
-        if (currentTime - newState.lastObstacleSpawnTime > GAME_CONFIG.OBSTACLE_SPAWN_INTERVAL) {
-          const obstacle = spawnObstacle(newState);
-          newState = {
-            ...newState,
-            obstacles: [...newState.obstacles, obstacle],
-            lastObstacleSpawnTime: currentTime,
-          };
-        }
-
-        // Auto-fire when touching
-        if (isTouching && currentTime - lastFireTime.current > GAME_CONFIG.FIRE_RATE) {
-          const hasRapidFire = newState.activeEffects.some((e) => e.type === 'rapidFire');
-          const fireRate = hasRapidFire ? GAME_CONFIG.FIRE_RATE / 2 : GAME_CONFIG.FIRE_RATE;
-
-          if (currentTime - lastFireTime.current > fireRate) {
-            const newBullets = newState.playerShips.map((ship) =>
-              createBullet(ship.position.x, ship.position.y + 0.7, true, newState)
-            );
-            newState = {
-              ...newState,
-              bullets: [...newState.bullets, ...newBullets],
-            };
-            lastFireTime.current = currentTime;
-          }
-        }
-
-        // Check game over
-        if (newState.status === 'gameOver') {
-          onGameOver(newState.player.score);
-        }
-
-        return newState;
-      });
-    }, 16);
-
-    return () => clearInterval(gameLoop);
-  }, [gameState.status, touchPosition, isTouching, onGameOver]);
-
+export default function Game3D() {
   return (
-    <div className="relative w-full h-full">
+    <div className="w-full h-full">
       <Canvas
-        ref={canvasRef}
-        camera={{ position: [0, 0, 15], fov: 60 }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        style={{ touchAction: 'none' }}
+        shadows
+        gl={{ antialias: true, alpha: false }}
+        style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
       >
-        <Suspense fallback={null}>
-          <GameScene gameState={gameState} avatarUrl={avatarUrl} />
-        </Suspense>
+        <GameScene />
       </Canvas>
-
-      {/* UI Overlay */}
-      {gameState.status === 'idle' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="text-center p-8">
-            <h1 className="text-4xl font-bold text-accent mb-4">
-              Crypto Shooter
-            </h1>
-            <p className="text-secondary mb-6">
-              Your wallet assets are the enemies!
-            </p>
-            <button
-              onClick={startGame}
-              className="px-8 py-4 bg-primary text-white text-xl font-bold rounded-lg hover:bg-primary/80 transition-colors"
-            >
-              START GAME
-            </button>
-          </div>
-        </div>
-      )}
-
-      {gameState.status === 'gameOver' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-          <div className="text-center p-8">
-            <h2 className="text-4xl font-bold text-primary mb-4">GAME OVER</h2>
-            <p className="text-3xl text-accent mb-6">
-              Score: {gameState.player.score.toLocaleString()}
-            </p>
-            <button
-              onClick={startGame}
-              className="px-8 py-4 bg-secondary text-dark text-xl font-bold rounded-lg hover:bg-secondary/80 transition-colors"
-            >
-              PLAY AGAIN
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* HUD */}
-      {gameState.status === 'playing' && (
-        <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-none">
-          {/* Score */}
-          <div className="bg-dark/80 px-4 py-2 rounded-lg">
-            <p className="text-accent text-2xl font-bold">
-              {gameState.player.score.toLocaleString()}
-            </p>
-          </div>
-
-          {/* Lives */}
-          <div className="bg-dark/80 px-4 py-2 rounded-lg flex gap-2">
-            {Array.from({ length: gameState.player.lives }).map((_, i) => (
-              <span key={i} className="text-primary text-2xl">❤️</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Active Effects */}
-      {gameState.status === 'playing' && gameState.activeEffects.length > 0 && (
-        <div className="absolute bottom-4 left-4 flex gap-2 pointer-events-none">
-          {gameState.activeEffects.map((effect, i) => (
-            <div
-              key={i}
-              className="px-3 py-1 rounded-full text-sm font-bold"
-              style={{ backgroundColor: GAME_CONFIG.ITEM_COLORS[effect.type] }}
-            >
-              {effect.type === 'speedUp' && '⚡ Speed'}
-              {effect.type === 'shield' && '🛡️ Shield'}
-              {effect.type === 'rapidFire' && '🔥 Rapid'}
-              {effect.type === 'scoreMultiplier' && '✨ 2x'}
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Ships count */}
-      {gameState.status === 'playing' && gameState.playerShips.length > 1 && (
-        <div className="absolute bottom-4 right-4 bg-dark/80 px-4 py-2 rounded-lg pointer-events-none">
-          <p className="text-accent font-bold">
-            Ships: {gameState.playerShips.length}
-          </p>
-        </div>
-      )}
     </div>
   );
 }

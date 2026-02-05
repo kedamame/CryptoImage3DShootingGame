@@ -1,108 +1,194 @@
-import { type Address, parseAbi } from 'viem';
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { base } from 'wagmi/chains';
+import { createPublicClient, http, encodeFunctionData, type Address } from 'viem';
+import { base } from 'viem/chains';
 
-// Contract ABI (simplified for frontend use)
-export const LEADERBOARD_ABI = parseAbi([
-  'function submitScore(uint256 score, string calldata username) external',
-  'function getTopScores(uint256 count) external view returns ((address player, uint256 score, uint256 timestamp, string username)[])',
-  'function getLeaderboardSize() external view returns (uint256)',
-  'function getPlayerRank(address player) external view returns (uint256)',
-  'function playerBestScore(address player) external view returns (uint256)',
-]);
+// Deployed contract address (to be updated after deployment)
+export const LEADERBOARD_CONTRACT_ADDRESS = '0x0000000000000000000000000000000000000000' as Address;
 
-// Contract address - to be deployed
-// For testing, you can deploy to Base Sepolia first
-export const LEADERBOARD_CONTRACT_ADDRESS: Address = '0x0000000000000000000000000000000000000000'; // Update after deployment
+// ABI for the leaderboard contract
+export const LEADERBOARD_ABI = [
+  {
+    inputs: [{ name: 'score', type: 'uint256' }],
+    name: 'submitScore',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'count', type: 'uint256' }],
+    name: 'getTopScores',
+    outputs: [
+      {
+        components: [
+          { name: 'player', type: 'address' },
+          { name: 'score', type: 'uint256' },
+          { name: 'timestamp', type: 'uint256' },
+        ],
+        name: '',
+        type: 'tuple[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'player', type: 'address' }],
+    name: 'playerBestScore',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'player', type: 'address' }],
+    name: 'getPlayerRank',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getLeaderboardSize',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(),
+});
 
 export interface LeaderboardEntry {
-  player: Address;
-  score: bigint;
-  timestamp: bigint;
-  username: string;
+  address: string;
+  score: number;
+  timestamp: number;
 }
 
-// Hook to get top scores
-export function useTopScores(count: number = 10) {
-  return useReadContract({
-    address: LEADERBOARD_CONTRACT_ADDRESS,
-    abi: LEADERBOARD_ABI,
-    functionName: 'getTopScores',
-    args: [BigInt(count)],
-    chainId: base.id,
-    query: {
-      enabled: LEADERBOARD_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-    },
-  });
+// Local storage fallback for demo/testing
+const LOCAL_STORAGE_KEY = 'crypto_shooting_leaderboard';
+
+function getLocalLeaderboard(): LeaderboardEntry[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
 }
 
-// Hook to get player's rank
-export function usePlayerRank(playerAddress: Address | undefined) {
-  return useReadContract({
-    address: LEADERBOARD_CONTRACT_ADDRESS,
-    abi: LEADERBOARD_ABI,
-    functionName: 'getPlayerRank',
-    args: playerAddress ? [playerAddress] : undefined,
-    chainId: base.id,
-    query: {
-      enabled: !!playerAddress && LEADERBOARD_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-    },
-  });
+function saveLocalLeaderboard(entries: LeaderboardEntry[]) {
+  if (typeof window === 'undefined') return;
+  try {
+    // Keep only top 100
+    const sorted = entries.sort((a, b) => b.score - a.score).slice(0, 100);
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(sorted));
+  } catch {
+    // Ignore storage errors
+  }
 }
 
-// Hook to get player's best score
-export function usePlayerBestScore(playerAddress: Address | undefined) {
-  return useReadContract({
-    address: LEADERBOARD_CONTRACT_ADDRESS,
-    abi: LEADERBOARD_ABI,
-    functionName: 'playerBestScore',
-    args: playerAddress ? [playerAddress] : undefined,
-    chainId: base.id,
-    query: {
-      enabled: !!playerAddress && LEADERBOARD_CONTRACT_ADDRESS !== '0x0000000000000000000000000000000000000000',
-    },
-  });
-}
+export async function getTopScores(count: number = 10): Promise<LeaderboardEntry[]> {
+  // Check if contract is deployed
+  if (LEADERBOARD_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+    // Use local storage fallback
+    return getLocalLeaderboard().slice(0, count);
+  }
 
-// Hook to submit score
-export function useSubmitScore() {
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
-
-  const submitScore = (score: number, username: string) => {
-    if (LEADERBOARD_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
-      console.warn('Leaderboard contract not deployed yet');
-      return;
-    }
-
-    writeContract({
+  try {
+    const result = await publicClient.readContract({
       address: LEADERBOARD_CONTRACT_ADDRESS,
       abi: LEADERBOARD_ABI,
-      functionName: 'submitScore',
-      args: [BigInt(score), username],
-      chainId: base.id,
+      functionName: 'getTopScores',
+      args: [BigInt(count)],
     });
-  };
 
+    return result.map((entry) => ({
+      address: entry.player,
+      score: Number(entry.score),
+      timestamp: Number(entry.timestamp),
+    }));
+  } catch (error) {
+    console.error('Failed to fetch leaderboard:', error);
+    return getLocalLeaderboard().slice(0, count);
+  }
+}
+
+export async function getPlayerBestScore(address: string): Promise<number> {
+  if (LEADERBOARD_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+    const local = getLocalLeaderboard();
+    const playerEntry = local.find((e) => e.address.toLowerCase() === address.toLowerCase());
+    return playerEntry?.score || 0;
+  }
+
+  try {
+    const result = await publicClient.readContract({
+      address: LEADERBOARD_CONTRACT_ADDRESS,
+      abi: LEADERBOARD_ABI,
+      functionName: 'playerBestScore',
+      args: [address as Address],
+    });
+    return Number(result);
+  } catch (error) {
+    console.error('Failed to fetch player best score:', error);
+    return 0;
+  }
+}
+
+export async function getPlayerRank(address: string): Promise<number> {
+  if (LEADERBOARD_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') {
+    const local = getLocalLeaderboard();
+    const index = local.findIndex((e) => e.address.toLowerCase() === address.toLowerCase());
+    return index >= 0 ? index + 1 : 0;
+  }
+
+  try {
+    const result = await publicClient.readContract({
+      address: LEADERBOARD_CONTRACT_ADDRESS,
+      abi: LEADERBOARD_ABI,
+      functionName: 'getPlayerRank',
+      args: [address as Address],
+    });
+    return Number(result);
+  } catch (error) {
+    console.error('Failed to fetch player rank:', error);
+    return 0;
+  }
+}
+
+// Prepare transaction data for submitting score
+export function prepareSubmitScoreTransaction(score: number) {
   return {
-    submitScore,
-    isPending,
-    isConfirming,
-    isSuccess,
-    error,
-    hash,
+    to: LEADERBOARD_CONTRACT_ADDRESS,
+    data: encodeFunctionData({
+      abi: LEADERBOARD_ABI,
+      functionName: 'submitScore',
+      args: [BigInt(score)],
+    }),
   };
 }
 
-// Format score for display
-export function formatScore(score: bigint | number): string {
-  return Number(score).toLocaleString();
-}
+// Submit score to local storage (for demo mode)
+export function submitScoreLocal(address: string, score: number) {
+  const entries = getLocalLeaderboard();
 
-// Truncate address for display
-export function truncateAddress(address: string): string {
-  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  // Check if player already has a better score
+  const existingIndex = entries.findIndex(
+    (e) => e.address.toLowerCase() === address.toLowerCase()
+  );
+
+  if (existingIndex >= 0) {
+    if (entries[existingIndex].score >= score) {
+      return; // Don't update if existing score is higher
+    }
+    entries.splice(existingIndex, 1);
+  }
+
+  entries.push({
+    address,
+    score,
+    timestamp: Date.now(),
+  });
+
+  saveLocalLeaderboard(entries);
 }

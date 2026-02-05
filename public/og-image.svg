@@ -1,77 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0F0F1A"/>
-      <stop offset="100%" style="stop-color:#1A1A2E"/>
-    </linearGradient>
-    <linearGradient id="ship" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#4ECDC4"/>
-      <stop offset="100%" style="stop-color:#22C55E"/>
-    </linearGradient>
-    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FFE66D"/>
-      <stop offset="100%" style="stop-color:#F97316"/>
-    </linearGradient>
-    <linearGradient id="title1" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#FF6B6B"/>
-      <stop offset="50%" style="stop-color:#FFE66D"/>
-      <stop offset="100%" style="stop-color:#4ECDC4"/>
+    <linearGradient id="ogBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="50%" style="stop-color:#16213e"/>
+      <stop offset="100%" style="stop-color:#0f3460"/>
     </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#ogBg)"/>
 
-  <!-- Stars -->
-  <circle cx="50" cy="50" r="2" fill="#fff" opacity="0.5"/>
-  <circle cx="150" cy="400" r="3" fill="#fff" opacity="0.4"/>
-  <circle cx="300" cy="100" r="2" fill="#fff" opacity="0.6"/>
-  <circle cx="900" cy="50" r="3" fill="#fff" opacity="0.5"/>
-  <circle cx="1100" cy="150" r="2" fill="#fff" opacity="0.4"/>
-  <circle cx="1050" cy="500" r="3" fill="#fff" opacity="0.5"/>
-  <circle cx="100" cy="550" r="2" fill="#fff" opacity="0.3"/>
-
-  <!-- Player ship (left side) -->
-  <g transform="translate(200, 350)">
-    <polygon points="0,-80 -60,80 0,40 60,80" fill="url(#ship)"/>
-    <ellipse cx="0" cy="90" rx="35" ry="25" fill="url(#glow)"/>
-    <!-- Bullets -->
-    <ellipse cx="0" cy="-120" rx="10" ry="20" fill="#FFE66D"/>
-    <ellipse cx="-40" cy="-100" rx="8" ry="16" fill="#FFE66D" opacity="0.7"/>
-    <ellipse cx="40" cy="-100" rx="8" ry="16" fill="#FFE66D" opacity="0.7"/>
+  <!-- Grid -->
+  <g stroke="#2D2D2D" stroke-width="1" opacity="0.3">
+    <line x1="0" y1="100" x2="1200" y2="100"/>
+    <line x1="0" y1="200" x2="1200" y2="200"/>
+    <line x1="0" y1="300" x2="1200" y2="300"/>
+    <line x1="0" y1="400" x2="1200" y2="400"/>
+    <line x1="0" y1="500" x2="1200" y2="500"/>
+    <line x1="100" y1="0" x2="100" y2="630"/>
+    <line x1="200" y1="0" x2="200" y2="630"/>
+    <line x1="300" y1="0" x2="300" y2="630"/>
+    <line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="500" y1="0" x2="500" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/>
+    <line x1="700" y1="0" x2="700" y2="630"/>
+    <line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="900" y1="0" x2="900" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+    <line x1="1100" y1="0" x2="1100" y2="630"/>
   </g>
 
-  <!-- Title (right side) -->
-  <text x="700" y="250" font-family="Arial, sans-serif" font-size="90" font-weight="bold" fill="url(#title1)" text-anchor="middle">CRYPTO</text>
-  <text x="700" y="350" font-family="Arial, sans-serif" font-size="90" font-weight="bold" fill="#4ECDC4" text-anchor="middle">SHOOTER</text>
+  <!-- Main ship (left side) -->
+  <g transform="translate(200, 280)">
+    <rect x="0" y="0" width="120" height="160" rx="12" fill="#6ECBFF"/>
+    <rect x="-60" y="35" width="50" height="90" rx="6" fill="#54E6CB"/>
+    <rect x="130" y="35" width="50" height="90" rx="6" fill="#54E6CB"/>
+    <rect x="35" y="20" width="50" height="50" rx="6" fill="#FFD93D"/>
+  </g>
+
+  <!-- Bullets -->
+  <rect x="235" y="180" width="15" height="50" rx="3" fill="#FFD93D"/>
+  <rect x="255" y="140" width="15" height="50" rx="3" fill="#FF8C42"/>
+  <rect x="275" y="200" width="15" height="50" rx="3" fill="#FFD93D"/>
+
+  <!-- Enemy tokens (right side) -->
+  <rect x="700" y="120" width="100" height="100" rx="10" fill="#FF6B6B" opacity="0.9"/>
+  <rect x="850" y="200" width="90" height="90" rx="10" fill="#A66CFF" opacity="0.9"/>
+  <rect x="1000" y="100" width="80" height="80" rx="10" fill="#FF9FF3" opacity="0.9"/>
+  <rect x="750" y="350" width="110" height="110" rx="10" fill="#6BCB77" opacity="0.9"/>
+  <rect x="920" y="380" width="85" height="85" rx="10" fill="#FFD93D" opacity="0.9"/>
+  <rect x="1050" y="300" width="75" height="75" rx="10" fill="#FF8C42" opacity="0.9"/>
+
+  <!-- Power-ups -->
+  <polygon points="600,450 620,490 660,490 630,520 640,560 600,530 560,560 570,520 540,490 580,490" fill="#6ECBFF"/>
+  <polygon points="480,380 495,410 525,410 500,430 510,460 480,440 450,460 460,430 435,410 465,410" fill="#FF9FF3"/>
+
+  <!-- Title -->
+  <text x="600" y="80" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="48" fill="#FFD93D">CRYPTO IMAGE</text>
+  <text x="600" y="600" text-anchor="middle" font-family="monospace" font-weight="bold" font-size="40" fill="#FF8C42">SHOOTING GAME</text>
 
   <!-- Subtitle -->
-  <text x="700" y="420" font-family="Arial, sans-serif" font-size="24" fill="#A855F7" text-anchor="middle">3D Shooting Game for Farcaster Mini Apps</text>
-
-  <!-- Enemies (floating around) -->
-  <g transform="translate(400, 180)">
-    <rect x="-30" y="-30" width="60" height="60" rx="8" fill="#FF6B6B"/>
-    <text x="0" y="10" font-family="Arial" font-size="28" font-weight="bold" fill="#fff" text-anchor="middle">$</text>
-  </g>
-
-  <g transform="translate(950, 450)">
-    <rect x="-30" y="-30" width="60" height="60" rx="8" fill="#A855F7"/>
-    <text x="0" y="8" font-family="Arial" font-size="18" font-weight="bold" fill="#fff" text-anchor="middle">NFT</text>
-  </g>
-
-  <g transform="translate(500, 500) rotate(20)">
-    <rect x="-20" y="-20" width="40" height="40" rx="4" fill="#4ECDC4" opacity="0.7"/>
-  </g>
-
-  <!-- Power-up -->
-  <g transform="translate(350, 400)">
-    <polygon points="0,-15 13,8 -13,8" fill="#FFE66D"/>
-    <polygon points="0,15 13,-8 -13,-8" fill="#FFE66D"/>
-  </g>
-
-  <!-- Call to action -->
-  <g transform="translate(700, 530)">
-    <rect x="-100" y="-25" width="200" height="50" rx="25" fill="#FF6B6B"/>
-    <text x="0" y="8" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#fff" text-anchor="middle">PLAY NOW</text>
-  </g>
+  <text x="600" y="560" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#FFFFFF" opacity="0.7">Shoot your wallet tokens &amp; NFTs!</text>
 </svg>
