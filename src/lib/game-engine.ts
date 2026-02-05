@@ -5,25 +5,23 @@ import { POP_COLORS, BLOCK_COLORS, POWER_UP_DURATION } from './game-types';
 const GAME_BOUNDS = {
   minX: -8,
   maxX: 8,
-  minY: -6,
-  maxY: 10,
-  minZ: -2,
-  maxZ: 2,
+  minY: -5,
+  maxY: 8,
 };
 
-const SPAWN_RATE = 1500; // ms between enemy spawns
-const BLOCK_SPAWN_RATE = 3000; // ms between block spawns
-const POWER_UP_DROP_CHANCE = 0.3; // 30% chance to drop power-up
+const SPAWN_RATE = 1200; // ms between enemy spawns
+const BLOCK_SPAWN_RATE = 2500; // ms between block spawns
+const POWER_UP_DROP_CHANCE = 0.3;
 
-let lastSpawnTime = 0;
-let lastBlockSpawnTime = 0;
-let bulletIdCounter = 0;
-let enemyIdCounter = 0;
-let powerUpIdCounter = 0;
-
+// Counters stored in the store state to avoid module-level issues
 interface GameStore extends GameState {
   walletAssets: WalletAsset[];
   playerAvatar: string | null;
+  lastSpawnTime: number;
+  lastBlockSpawnTime: number;
+  enemyIdCounter: number;
+  bulletIdCounter: number;
+  powerUpIdCounter: number;
   setWalletAssets: (assets: WalletAsset[]) => void;
   setPlayerAvatar: (url: string | null) => void;
   startGame: () => void;
@@ -37,8 +35,18 @@ interface GameStore extends GameState {
   takeDamage: () => void;
 }
 
+// Default crypto asset for enemies
+const DEFAULT_ASSET: WalletAsset = {
+  id: 'default-crypto',
+  type: 'token',
+  name: 'Crypto',
+  symbol: 'CRYPTO',
+  imageUrl: '',
+  contractAddress: '0x0',
+};
+
 export const useGameStore = create<GameStore>((set, get) => ({
-  players: [{ id: 0, position: { x: 0, y: -4, z: 0 }, isMain: true }],
+  players: [{ id: 0, position: { x: 0, y: -3, z: 0 }, isMain: true }],
   enemies: [],
   bullets: [],
   powerUps: [],
@@ -55,20 +63,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   extraShipCount: 0,
   walletAssets: [],
   playerAvatar: null,
+  lastSpawnTime: 0,
+  lastBlockSpawnTime: 0,
+  enemyIdCounter: 0,
+  bulletIdCounter: 0,
+  powerUpIdCounter: 0,
 
   setWalletAssets: (assets) => set({ walletAssets: assets }),
   setPlayerAvatar: (url) => set({ playerAvatar: url }),
 
   startGame: () => {
-    const currentTime = Date.now();
-    lastSpawnTime = currentTime;
-    lastBlockSpawnTime = currentTime;
-    bulletIdCounter = 0;
-    enemyIdCounter = 0;
-    powerUpIdCounter = 0;
-
-    set((state) => ({
-      players: [{ id: 0, position: { x: 0, y: -4, z: 0 }, isMain: true }],
+    console.log('Starting game...');
+    set({
+      players: [{ id: 0, position: { x: 0, y: -3, z: 0 }, isMain: true }],
       enemies: [],
       bullets: [],
       powerUps: [],
@@ -83,31 +90,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
         scoreBoost: false,
       },
       extraShipCount: 0,
-      // Preserve walletAssets, or use demo if empty
-      walletAssets: state.walletAssets.length > 0 ? state.walletAssets : [
-        { id: 'demo-eth', type: 'token', name: 'ETH', symbol: 'ETH', imageUrl: '', contractAddress: '0x0', balance: '1' },
-        { id: 'demo-usdc', type: 'token', name: 'USDC', symbol: 'USDC', imageUrl: '', contractAddress: '0x1', balance: '100' },
-      ],
-    }));
+      lastSpawnTime: 0, // Set to 0 so first spawn happens immediately
+      lastBlockSpawnTime: 0,
+      enemyIdCounter: 0,
+      bulletIdCounter: 0,
+      powerUpIdCounter: 0,
+    });
   },
 
   pauseGame: () => set({ isPaused: true }),
   resumeGame: () => set({ isPaused: false }),
-
   endGame: () => set({ isPlaying: false, isGameOver: true }),
 
   movePlayer: (x, y) => {
     set((state) => {
+      const clampedX = Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, x));
+      const clampedY = Math.max(GAME_BOUNDS.minY, Math.min(GAME_BOUNDS.maxY, y));
+
       const newPlayers = state.players.map((player, index) => {
-        // Main player follows touch exactly
         if (player.isMain) {
           return {
             ...player,
-            position: {
-              x: Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, x)),
-              y: Math.max(GAME_BOUNDS.minX, Math.min(-2, y)),
-              z: 0,
-            },
+            position: { x: clampedX, y: clampedY, z: 0 },
           };
         }
         // Extra ships follow with offset
@@ -115,8 +119,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return {
           ...player,
           position: {
-            x: Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, x + offset)),
-            y: Math.max(GAME_BOUNDS.minX, Math.min(-2, y)),
+            x: Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, clampedX + offset)),
+            y: clampedY,
             z: 0,
           },
         };
@@ -128,12 +132,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   fireBullet: () => {
     set((state) => {
       const newBullets: Bullet[] = state.players.map((player) => ({
-        id: `bullet-${bulletIdCounter++}`,
-        position: { ...player.position, y: player.position.y + 0.5 },
-        velocity: { x: 0, y: 15, z: 0 },
+        id: `bullet-${state.bulletIdCounter + player.id}`,
+        position: { x: player.position.x, y: player.position.y + 0.8, z: 0 },
+        velocity: { x: 0, y: 20, z: 0 },
         playerId: player.id,
       }));
-      return { bullets: [...state.bullets, ...newBullets] };
+      return {
+        bullets: [...state.bullets, ...newBullets],
+        bulletIdCounter: state.bulletIdCounter + state.players.length,
+      };
     });
   },
 
@@ -143,49 +150,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (!powerUp) return state;
 
       const newPowerUps = state.powerUps.filter((p) => p.id !== powerUpId);
-      let newState: Partial<GameState> = { powerUps: newPowerUps };
+      let updates: Partial<GameStore> = { powerUps: newPowerUps };
 
       switch (powerUp.type) {
         case 'extra_ship':
-          // Add new ship
           const newShipId = state.players.length;
           const offset = (newShipId % 2 === 0 ? -1 : 1) * Math.ceil(newShipId / 2) * 1.5;
           const mainPlayer = state.players.find((p) => p.isMain);
-          newState.players = [
+          updates.players = [
             ...state.players,
             {
               id: newShipId,
               position: {
                 x: (mainPlayer?.position.x || 0) + offset,
-                y: mainPlayer?.position.y || -4,
+                y: mainPlayer?.position.y || -3,
                 z: 0,
               },
               isMain: false,
             },
           ];
-          newState.extraShipCount = state.extraShipCount + 1;
+          updates.extraShipCount = state.extraShipCount + 1;
           break;
         case 'rapid_fire':
-          newState.activePowerUps = { ...state.activePowerUps, rapidFire: true };
+          updates.activePowerUps = { ...state.activePowerUps, rapidFire: true };
           setTimeout(() => {
             set((s) => ({ activePowerUps: { ...s.activePowerUps, rapidFire: false } }));
           }, POWER_UP_DURATION);
           break;
         case 'shield':
-          newState.activePowerUps = { ...state.activePowerUps, shield: true };
+          updates.activePowerUps = { ...state.activePowerUps, shield: true };
           setTimeout(() => {
             set((s) => ({ activePowerUps: { ...s.activePowerUps, shield: false } }));
           }, POWER_UP_DURATION);
           break;
         case 'score_boost':
-          newState.activePowerUps = { ...state.activePowerUps, scoreBoost: true };
+          updates.activePowerUps = { ...state.activePowerUps, scoreBoost: true };
           setTimeout(() => {
             set((s) => ({ activePowerUps: { ...s.activePowerUps, scoreBoost: false } }));
           }, POWER_UP_DURATION);
           break;
       }
 
-      return newState as GameState;
+      return updates as GameStore;
     });
   },
 
@@ -206,33 +212,25 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!state.isPlaying || state.isPaused) return;
 
     const currentTime = Date.now();
+    let updates: Partial<GameStore> = {};
 
-    // Default asset for when wallet assets are empty
-    const defaultAsset: WalletAsset = {
-      id: 'default-crypto',
-      type: 'token',
-      name: 'Crypto',
-      symbol: 'CRYPTO',
-      imageUrl: '',
-      contractAddress: '0x0',
-    };
+    // Get assets or use default
+    const assets = state.walletAssets.length > 0 ? state.walletAssets : [DEFAULT_ASSET];
 
-    // Spawn enemies (always spawn, use default asset if no wallet assets)
-    if (currentTime - lastSpawnTime > SPAWN_RATE) {
-      lastSpawnTime = currentTime;
-      const assets = state.walletAssets.length > 0 ? state.walletAssets : [defaultAsset];
+    // Spawn enemy
+    if (state.lastSpawnTime === 0 || currentTime - state.lastSpawnTime > SPAWN_RATE) {
       const randomAsset = assets[Math.floor(Math.random() * assets.length)];
       const newEnemy: Enemy = {
-        id: `enemy-${enemyIdCounter++}`,
+        id: `enemy-${state.enemyIdCounter}`,
         asset: randomAsset,
         position: {
           x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
-          y: GAME_BOUNDS.maxY,
+          y: GAME_BOUNDS.maxY + 2,
           z: 0,
         },
         velocity: {
-          x: (Math.random() - 0.5) * 2,
-          y: -2 - Math.random() * 2,
+          x: (Math.random() - 0.5) * 3,
+          y: -3 - Math.random() * 2,
           z: 0,
         },
         health: 2,
@@ -240,87 +238,82 @@ export const useGameStore = create<GameStore>((set, get) => ({
         size: 0.8 + Math.random() * 0.4,
         isBlock: false,
       };
-      set((s) => ({ enemies: [...s.enemies, newEnemy] }));
+      updates.enemies = [...state.enemies, newEnemy];
+      updates.lastSpawnTime = currentTime;
+      updates.enemyIdCounter = state.enemyIdCounter + 1;
+      console.log('Spawned enemy:', newEnemy.id);
     }
 
-    // Spawn blocks
-    if (currentTime - lastBlockSpawnTime > BLOCK_SPAWN_RATE) {
-      lastBlockSpawnTime = currentTime;
+    // Spawn block
+    if (state.lastBlockSpawnTime === 0 || currentTime - state.lastBlockSpawnTime > BLOCK_SPAWN_RATE) {
       const newBlock: Enemy = {
-        id: `block-${enemyIdCounter++}`,
-        asset: {
-          id: 'block',
-          type: 'token',
-          name: 'Block',
-          imageUrl: '',
-          contractAddress: '',
-        },
+        id: `block-${state.enemyIdCounter}`,
+        asset: { id: 'block', type: 'token', name: 'Block', imageUrl: '', contractAddress: '' },
         position: {
           x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
-          y: GAME_BOUNDS.maxY,
+          y: GAME_BOUNDS.maxY + 2,
           z: 0,
         },
-        velocity: {
-          x: 0,
-          y: -1.5,
-          z: 0,
-        },
+        velocity: { x: 0, y: -2, z: 0 },
         health: 3,
         maxHealth: 3,
         size: 1.2,
         isBlock: true,
       };
-      set((s) => ({ enemies: [...s.enemies, newBlock] }));
+      updates.enemies = [...(updates.enemies || state.enemies), newBlock];
+      updates.lastBlockSpawnTime = currentTime;
+      updates.enemyIdCounter = (updates.enemyIdCounter || state.enemyIdCounter) + 1;
+      console.log('Spawned block:', newBlock.id);
     }
 
-    // Update enemy positions
-    let newEnemies = state.enemies.map((enemy) => ({
+    // Use updated enemies if spawned, otherwise use state
+    let enemies = updates.enemies || state.enemies;
+
+    // Update positions
+    enemies = enemies.map((enemy) => ({
       ...enemy,
       position: {
         x: enemy.position.x + enemy.velocity.x * deltaTime,
         y: enemy.position.y + enemy.velocity.y * deltaTime,
-        z: enemy.position.z,
+        z: 0,
       },
     }));
 
-    // Update bullet positions
-    let newBullets = state.bullets.map((bullet) => ({
+    let bullets = state.bullets.map((bullet) => ({
       ...bullet,
       position: {
         x: bullet.position.x + bullet.velocity.x * deltaTime,
         y: bullet.position.y + bullet.velocity.y * deltaTime,
-        z: bullet.position.z,
+        z: 0,
       },
     }));
 
-    // Update power-up positions
-    let newPowerUps = state.powerUps.map((powerUp) => ({
-      ...powerUp,
+    let powerUps = state.powerUps.map((p) => ({
+      ...p,
       position: {
-        x: powerUp.position.x + powerUp.velocity.x * deltaTime,
-        y: powerUp.position.y + powerUp.velocity.y * deltaTime,
-        z: powerUp.position.z,
+        x: p.position.x + p.velocity.x * deltaTime,
+        y: p.position.y + p.velocity.y * deltaTime,
+        z: 0,
       },
     }));
 
-    // Check bullet-enemy collisions
+    // Collision detection
     let scoreIncrease = 0;
-    const destroyedEnemies: Enemy[] = [];
+    const destroyedEnemyIds = new Set<string>();
 
-    newBullets = newBullets.filter((bullet) => {
-      if (bullet.position.y > GAME_BOUNDS.maxY) return false;
+    bullets = bullets.filter((bullet) => {
+      if (bullet.position.y > GAME_BOUNDS.maxY + 5) return false;
 
-      for (const enemy of newEnemies) {
+      for (const enemy of enemies) {
         const dx = bullet.position.x - enemy.position.x;
         const dy = bullet.position.y - enemy.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (distance < enemy.size * 0.8) {
+        if (dist < enemy.size) {
           enemy.health -= 1;
           if (enemy.health <= 0) {
-            destroyedEnemies.push(enemy);
-            const baseScore = enemy.isBlock ? 50 : 100;
-            scoreIncrease += state.activePowerUps.scoreBoost ? baseScore * 2 : baseScore;
+            destroyedEnemyIds.add(enemy.id);
+            scoreIncrease += state.activePowerUps.scoreBoost ? (enemy.isBlock ? 100 : 200) : (enemy.isBlock ? 50 : 100);
           }
           return false;
         }
@@ -329,60 +322,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
 
     // Remove destroyed enemies and spawn power-ups
-    newEnemies = newEnemies.filter((enemy) => {
-      if (destroyedEnemies.includes(enemy)) {
-        // Chance to spawn power-up
+    enemies = enemies.filter((enemy) => {
+      if (destroyedEnemyIds.has(enemy.id)) {
         if (Math.random() < POWER_UP_DROP_CHANCE) {
-          const powerUpTypes: PowerUpType[] = ['extra_ship', 'rapid_fire', 'shield', 'score_boost'];
-          const randomType = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-          const newPowerUp: PowerUp = {
-            id: `powerup-${powerUpIdCounter++}`,
-            type: randomType,
+          const types: PowerUpType[] = ['extra_ship', 'rapid_fire', 'shield', 'score_boost'];
+          powerUps.push({
+            id: `powerup-${state.powerUpIdCounter}`,
+            type: types[Math.floor(Math.random() * types.length)],
             position: { ...enemy.position },
-            velocity: { x: 0, y: -1, z: 0 },
-          };
-          newPowerUps.push(newPowerUp);
+            velocity: { x: 0, y: -1.5, z: 0 },
+          });
+          updates.powerUpIdCounter = (updates.powerUpIdCounter || state.powerUpIdCounter) + 1;
         }
         return false;
       }
-      return enemy.position.y > GAME_BOUNDS.minY - 2;
+      return enemy.position.y > GAME_BOUNDS.minY - 3;
     });
 
-    // Check player-enemy collisions
+    // Player collision
     const mainPlayer = state.players.find((p) => p.isMain);
     if (mainPlayer) {
-      for (const enemy of newEnemies) {
+      for (const enemy of enemies) {
         const dx = mainPlayer.position.x - enemy.position.x;
         const dy = mainPlayer.position.y - enemy.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < enemy.size + 0.5) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < enemy.size + 0.5) {
           get().takeDamage();
-          newEnemies = newEnemies.filter((e) => e.id !== enemy.id);
+          enemies = enemies.filter((e) => e.id !== enemy.id);
           break;
         }
       }
-    }
 
-    // Check player-powerup collisions
-    if (mainPlayer) {
-      newPowerUps = newPowerUps.filter((powerUp) => {
-        const dx = mainPlayer.position.x - powerUp.position.x;
-        const dy = mainPlayer.position.y - powerUp.position.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < 1.2) {
-          get().collectPowerUp(powerUp.id);
+      // Power-up collection
+      powerUps = powerUps.filter((p) => {
+        const dx = mainPlayer.position.x - p.position.x;
+        const dy = mainPlayer.position.y - p.position.y;
+        if (Math.sqrt(dx * dx + dy * dy) < 1.5) {
+          get().collectPowerUp(p.id);
           return false;
         }
-        return powerUp.position.y > GAME_BOUNDS.minY - 2;
+        return p.position.y > GAME_BOUNDS.minY - 3;
       });
     }
 
     set({
-      enemies: newEnemies,
-      bullets: newBullets,
-      powerUps: newPowerUps,
+      ...updates,
+      enemies,
+      bullets,
+      powerUps,
       score: state.score + scoreIncrease,
     });
   },

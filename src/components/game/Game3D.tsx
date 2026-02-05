@@ -205,9 +205,17 @@ function BackgroundGrid() {
   );
 }
 
+// Game bounds must match game-engine.ts
+const GAME_BOUNDS = {
+  minX: -8,
+  maxX: 8,
+  minY: -5,
+  maxY: 8,
+};
+
 // Game scene
 function GameScene() {
-  const { gl } = useThree();
+  const { gl, camera, size } = useThree();
   // Get render data from store (triggers re-render)
   const players = useGameStore((s) => s.players);
   const enemies = useGameStore((s) => s.enemies);
@@ -217,11 +225,11 @@ function GameScene() {
   const playerAvatar = useGameStore((s) => s.playerAvatar);
 
   const lastFireTime = useRef(0);
-  const mousePos = useRef({ x: 0, y: -4 });
+  const mousePos = useRef({ x: 0, y: 0 });
 
   // Game loop - always runs when playing
   useFrame((state, delta) => {
-    // Get latest state directly from store (not from hook which captures at render time)
+    // Get latest state directly from store
     const store = useGameStore.getState();
 
     if (store.isPlaying && !store.isPaused) {
@@ -229,7 +237,7 @@ function GameScene() {
       store.updateGame(delta);
 
       // Always fire bullets continuously
-      const fireRate = store.activePowerUps.rapidFire ? 80 : 150; // ms
+      const fireRate = store.activePowerUps.rapidFire ? 80 : 150;
       if (Date.now() - lastFireTime.current > fireRate) {
         store.fireBullet();
         lastFireTime.current = Date.now();
@@ -240,40 +248,37 @@ function GameScene() {
     }
   });
 
-  // Touch/mouse controls - always track position
+  // Touch/mouse controls - convert screen to game coordinates
   useEffect(() => {
     const canvas = gl.domElement;
 
-    const getGamePosition = (clientX: number, clientY: number) => {
+    // Convert screen coordinates to game world coordinates
+    const screenToGame = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
-      const x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      const y = -((clientY - rect.top) / rect.height) * 2 + 1;
-      return {
-        x: x * 9,
-        y: y * 6 - 2,
-      };
+      // Normalize to 0-1
+      const normalizedX = (clientX - rect.left) / rect.width;
+      const normalizedY = (clientY - rect.top) / rect.height;
+      // Map to game bounds (x: -8 to 8, y: 8 to -5 - note Y is inverted)
+      const gameX = GAME_BOUNDS.minX + normalizedX * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX);
+      const gameY = GAME_BOUNDS.maxY - normalizedY * (GAME_BOUNDS.maxY - GAME_BOUNDS.minY);
+      return { x: gameX, y: gameY };
     };
 
-    // Mouse move - always track (no click required)
     const handleMouseMove = (e: MouseEvent) => {
-      const pos = getGamePosition(e.clientX, e.clientY);
-      mousePos.current = pos;
+      mousePos.current = screenToGame(e.clientX, e.clientY);
     };
 
-    // Touch move - always track
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        const pos = getGamePosition(e.touches[0].clientX, e.touches[0].clientY);
-        mousePos.current = pos;
+        mousePos.current = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
 
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        const pos = getGamePosition(e.touches[0].clientX, e.touches[0].clientY);
-        mousePos.current = pos;
+        mousePos.current = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
       }
     };
 
@@ -290,12 +295,13 @@ function GameScene() {
 
   return (
     <>
-      {/* Isometric-style camera */}
+      {/* Top-down orthographic camera */}
       <OrthographicCamera
         makeDefault
-        position={[0, -5, 15]}
-        zoom={40}
-        rotation={[0.3, 0, 0]}
+        position={[0, 1.5, 20]}
+        zoom={45}
+        near={0.1}
+        far={100}
       />
 
       {/* Lighting */}
