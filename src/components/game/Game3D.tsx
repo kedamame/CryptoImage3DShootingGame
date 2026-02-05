@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import { OrthographicCamera, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
@@ -28,11 +28,13 @@ function VoxelBox({
 // Player ship (voxel style)
 function PlayerShip({
   position,
+  targetPosition,
   isMain,
   avatarUrl,
   hasShield
 }: {
   position: [number, number, number];
+  targetPosition?: { x: number; y: number } | null;
   isMain: boolean;
   avatarUrl?: string | null;
   hasShield: boolean;
@@ -42,6 +44,11 @@ function PlayerShip({
 
   useFrame((state) => {
     if (groupRef.current) {
+      // Direct position update for main ship - no lag
+      if (isMain && targetPosition) {
+        groupRef.current.position.x = targetPosition.x;
+        groupRef.current.position.y = targetPosition.y;
+      }
       // Slight floating animation
       groupRef.current.position.z = Math.sin(state.clock.elapsedTime * 3) * 0.05;
     }
@@ -285,6 +292,8 @@ function GameScene() {
 
   const lastFireTime = useRef(0);
   const mousePos = useRef({ x: 0, y: 0 });
+  // Direct position ref for lag-free rendering
+  const [targetPos, setTargetPos] = useState({ x: 0, y: -3 });
 
   // Game loop - always runs when playing
   useFrame((state, delta) => {
@@ -302,7 +311,7 @@ function GameScene() {
         lastFireTime.current = Date.now();
       }
 
-      // Always move player to cursor position
+      // Update store for collision detection (less frequent)
       store.movePlayer(mousePos.current.x, mousePos.current.y);
     }
   });
@@ -327,20 +336,26 @@ function GameScene() {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      mousePos.current = screenToGame(e.clientX, e.clientY);
+      const pos = screenToGame(e.clientX, e.clientY);
+      mousePos.current = pos;
+      setTargetPos(pos); // Immediate update for lag-free rendering
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        mousePos.current = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
+        const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
+        mousePos.current = pos;
+        setTargetPos(pos);
       }
     };
 
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        mousePos.current = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
+        const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
+        mousePos.current = pos;
+        setTargetPos(pos);
       }
     };
 
@@ -386,6 +401,7 @@ function GameScene() {
         <PlayerShip
           key={player.id}
           position={[player.position.x, player.position.y, player.position.z]}
+          targetPosition={player.isMain ? targetPos : null}
           isMain={player.isMain}
           avatarUrl={player.isMain ? playerAvatar : null}
           hasShield={activePowerUps.shield}

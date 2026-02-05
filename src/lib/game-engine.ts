@@ -9,16 +9,20 @@ const GAME_BOUNDS = {
   maxY: 8,
 };
 
-const SPAWN_RATE = 600; // ms between enemy spawns (faster)
-const MULTI_SPAWN_COUNT = 3; // Spawn multiple enemies at once
-const BLOCK_SPAWN_RATE = 2000; // ms between block spawns
+const SPAWN_RATE_INITIAL = 1500; // ms between enemy spawns (slow at start)
+const SPAWN_RATE_MIN = 500; // fastest spawn rate
+const SPAWN_COUNT_INITIAL = 1; // Start with 1 enemy
+const SPAWN_COUNT_MAX = 6; // Maximum enemies per wave
+const BLOCK_SPAWN_RATE = 2500; // ms between block spawns
 const POWER_UP_DROP_CHANCE = 0.25;
 const ENEMY_BULLET_SPEED = 6;
+const DIFFICULTY_RAMP_TIME = 120000; // 2 minutes to reach max difficulty
 
 // Counters stored in the store state to avoid module-level issues
 interface GameStore extends GameState {
   walletAssets: WalletAsset[];
   playerAvatar: string | null;
+  gameStartTime: number;
   lastSpawnTime: number;
   lastBlockSpawnTime: number;
   enemyIdCounter: number;
@@ -71,6 +75,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   bossesDefeated: 0,
   walletAssets: [],
   playerAvatar: null,
+  gameStartTime: 0,
   lastSpawnTime: 0,
   lastBlockSpawnTime: 0,
   enemyIdCounter: 0,
@@ -103,6 +108,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       killCount: 0,
       bossActive: false,
       bossesDefeated: 0,
+      gameStartTime: Date.now(),
       lastSpawnTime: 0, // Set to 0 so first spawn happens immediately
       lastBlockSpawnTime: 0,
       enemyIdCounter: 0,
@@ -258,16 +264,40 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Get assets or use default
     const assets = state.walletAssets.length > 0 ? state.walletAssets : [DEFAULT_ASSET];
 
-    // Spawn multiple enemies at once
-    if (state.lastSpawnTime === 0 || currentTime - state.lastSpawnTime > SPAWN_RATE) {
-      const patterns: EnemyAttackPattern[] = ['straight', 'spread', 'aimed', 'circular'];
+    // Calculate difficulty based on elapsed time
+    const elapsedTime = currentTime - state.gameStartTime;
+    const difficultyProgress = Math.min(1, elapsedTime / DIFFICULTY_RAMP_TIME);
+
+    // Spawn rate decreases over time (faster spawns)
+    const currentSpawnRate = SPAWN_RATE_INITIAL - (SPAWN_RATE_INITIAL - SPAWN_RATE_MIN) * difficultyProgress;
+
+    // Spawn count increases over time
+    const baseSpawnCount = Math.floor(SPAWN_COUNT_INITIAL + (SPAWN_COUNT_MAX - SPAWN_COUNT_INITIAL) * difficultyProgress);
+    const spawnCount = Math.min(SPAWN_COUNT_MAX, baseSpawnCount + Math.floor(state.bossesDefeated * 0.5));
+
+    // Available attack patterns unlock over time
+    const getAvailablePatterns = (): EnemyAttackPattern[] => {
+      const patterns: EnemyAttackPattern[] = ['straight']; // Always available
+      if (elapsedTime > 10000) patterns.push('spread'); // After 10 seconds
+      if (elapsedTime > 25000) patterns.push('aimed'); // After 25 seconds
+      if (elapsedTime > 45000) patterns.push('circular'); // After 45 seconds
+      if (elapsedTime > 60000) patterns.push('wave'); // After 60 seconds
+      if (elapsedTime > 80000) patterns.push('burst'); // After 80 seconds
+      return patterns;
+    };
+
+    // Spawn enemies based on time-scaled difficulty
+    if (state.lastSpawnTime === 0 || currentTime - state.lastSpawnTime > currentSpawnRate) {
+      const availablePatterns = getAvailablePatterns();
       const newEnemies: Enemy[] = [];
-      const spawnCount = MULTI_SPAWN_COUNT + Math.floor(state.bossesDefeated * 0.5);
 
       for (let i = 0; i < spawnCount; i++) {
         const randomAsset = assets[Math.floor(Math.random() * assets.length)];
-        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
-        const fireRate = pattern === 'circular' ? 1500 : pattern === 'spread' ? 1200 : 1000;
+        const pattern = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+        const fireRate = pattern === 'circular' ? 1500 : pattern === 'spread' ? 1200 : pattern === 'aimed' ? 800 : pattern === 'wave' ? 600 : pattern === 'burst' ? 1800 : 1000;
+
+        // Enemy speed increases with difficulty
+        const baseSpeed = 1.5 + difficultyProgress * 1.5;
 
         const newEnemy: Enemy = {
           id: `enemy-${(updates.enemyIdCounter || state.enemyIdCounter) + i}`,
@@ -279,7 +309,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
           },
           velocity: {
             x: (Math.random() - 0.5) * 2,
-            y: -2 - Math.random() * 1.5,
+            y: -baseSpeed - Math.random() * 1,
             z: 0,
           },
           health: 2,
@@ -446,6 +476,51 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 size: 0.1,
                 color: bulletColor,
               });
+            }
+            break;
+
+          case 'wave':
+            // Wave pattern - bullets move in sine wave
+            for (let i = 0; i < 3; i++) {
+              const waveOffset = (i - 1) * 0.5;
+              newEnemyBullets.push({
+                id: `eb-${enemyBulletIdCounter++}`,
+                position: { x: enemy.position.x + waveOffset, y: enemy.position.y, z: 0 },
+                velocity: {
+                  x: Math.sin(currentTime / 100 + i) * 2,
+                  y: -ENEMY_BULLET_SPEED * 0.6,
+                  z: 0,
+                },
+                size: 0.14,
+                color: '#54E6CB',
+              });
+            }
+            break;
+
+          case 'burst':
+            // Quick 3-shot burst aimed at player
+            if (mainPlayer) {
+              const dx = mainPlayer.position.x - enemy.position.x;
+              const dy = mainPlayer.position.y - enemy.position.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > 0) {
+                for (let i = 0; i < 3; i++) {
+                  const spreadAngle = (i - 1) * 0.15;
+                  const baseAngle = Math.atan2(dy, dx);
+                  const angle = baseAngle + spreadAngle;
+                  newEnemyBullets.push({
+                    id: `eb-${enemyBulletIdCounter++}`,
+                    position: { ...enemy.position },
+                    velocity: {
+                      x: Math.cos(angle) * ENEMY_BULLET_SPEED * 0.9,
+                      y: Math.sin(angle) * ENEMY_BULLET_SPEED * 0.9,
+                      z: 0,
+                    },
+                    size: 0.13,
+                    color: '#FFD93D',
+                  });
+                }
+              }
             }
             break;
 

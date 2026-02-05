@@ -15,6 +15,8 @@ export type EnemyAttackPattern =
   | 'spread'      // 3-way spread shot
   | 'aimed'       // Aims at player
   | 'circular'    // Circular burst
+  | 'wave'        // Sine wave pattern (late game)
+  | 'burst'       // Quick 3-shot burst (late game)
   | 'spiral'      // Spiral pattern (boss)
   | 'barrage';    // Heavy barrage (boss)
 
