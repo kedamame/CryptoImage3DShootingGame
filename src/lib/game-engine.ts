@@ -134,13 +134,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
             position: { x: clampedX, y: clampedY, z: 0 },
           };
         }
-        // Extra ships follow with offset
-        const offset = (index % 2 === 0 ? -1 : 1) * Math.ceil(index / 2) * 1.5;
+        // Inverted V formation: narrower spacing, ships behind main
+        const row = Math.ceil(index / 2); // Which row (1, 1, 2, 2, 3, 3...)
+        const side = index % 2 === 1 ? 1 : -1; // Alternate left/right
+        const xOffset = side * row * 0.5; // Narrow horizontal spacing
+        const yOffset = -row * 0.4; // Ships behind main ship
         return {
           ...player,
           position: {
-            x: Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, clampedX + offset)),
-            y: clampedY,
+            x: Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, clampedX + xOffset)),
+            y: Math.max(GAME_BOUNDS.minY, Math.min(GAME_BOUNDS.maxY, clampedY + yOffset)),
             z: 0,
           },
         };
@@ -175,15 +178,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
       switch (powerUp.type) {
         case 'extra_ship':
           const newShipId = state.players.length;
-          const offset = (newShipId % 2 === 0 ? -1 : 1) * Math.ceil(newShipId / 2) * 1.5;
           const mainPlayer = state.players.find((p) => p.isMain);
+          // Inverted V formation
+          const row = Math.ceil(newShipId / 2);
+          const side = newShipId % 2 === 1 ? 1 : -1;
+          const xOffset = side * row * 0.5;
+          const yOffset = -row * 0.4;
           updates.players = [
             ...state.players,
             {
               id: newShipId,
               position: {
-                x: (mainPlayer?.position.x || 0) + offset,
-                y: mainPlayer?.position.y || -3,
+                x: (mainPlayer?.position.x || 0) + xOffset,
+                y: (mainPlayer?.position.y || -3) + yOffset,
                 z: 0,
               },
               isMain: false,
@@ -299,6 +306,11 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // Enemy speed increases with difficulty
         const baseSpeed = 1.5 + difficultyProgress * 1.5;
 
+        // Enemy health increases over time (no upper limit)
+        // Base health 2, increases by 1 every 30 seconds
+        const healthBonus = Math.floor(elapsedTime / 30000);
+        const enemyHealth = 2 + healthBonus;
+
         const newEnemy: Enemy = {
           id: `enemy-${(updates.enemyIdCounter || state.enemyIdCounter) + i}`,
           asset: randomAsset,
@@ -312,8 +324,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
             y: -baseSpeed - Math.random() * 1,
             z: 0,
           },
-          health: 2,
-          maxHealth: 2,
+          health: enemyHealth,
+          maxHealth: enemyHealth,
           size: 0.6 + Math.random() * 0.3,
           isBlock: false,
           isBoss: false,

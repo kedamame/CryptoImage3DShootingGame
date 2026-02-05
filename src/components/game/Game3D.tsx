@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useEffect, useMemo, useState } from 'react';
-import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
-import { OrthographicCamera, Text, useTexture } from '@react-three/drei';
+import { useRef, useEffect, useMemo, useState, memo } from 'react';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { OrthographicCamera } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '@/lib/game-engine';
 import { POP_COLORS, BLOCK_COLORS, POWER_UP_COLORS, BOSS_COLORS, type PowerUpType } from '@/lib/game-types';
@@ -61,34 +61,29 @@ function PlayerShip({
   return (
     <group ref={groupRef} position={position}>
       {/* Main body - smaller for bullet hell */}
-      <mesh castShadow>
+      <mesh>
         <boxGeometry args={[0.4, 0.5, 0.2]} />
-        <meshStandardMaterial color={isMain ? '#6ECBFF' : '#FF9FF3'} flatShading />
+        <meshBasicMaterial color={isMain ? '#6ECBFF' : '#FF9FF3'} />
       </mesh>
       {/* Wings - smaller */}
-      <mesh position={[-0.3, -0.05, 0]} castShadow>
+      <mesh position={[-0.3, -0.05, 0]}>
         <boxGeometry args={[0.2, 0.3, 0.1]} />
-        <meshStandardMaterial color={isMain ? '#54E6CB' : '#A66CFF'} flatShading />
+        <meshBasicMaterial color={isMain ? '#54E6CB' : '#A66CFF'} />
       </mesh>
-      <mesh position={[0.3, -0.05, 0]} castShadow>
+      <mesh position={[0.3, -0.05, 0]}>
         <boxGeometry args={[0.2, 0.3, 0.1]} />
-        <meshStandardMaterial color={isMain ? '#54E6CB' : '#A66CFF'} flatShading />
+        <meshBasicMaterial color={isMain ? '#54E6CB' : '#A66CFF'} />
       </mesh>
       {/* Cockpit - smaller */}
-      <mesh position={[0, 0.1, 0.08]} castShadow>
+      <mesh position={[0, 0.1, 0.08]}>
         <boxGeometry args={[0.2, 0.2, 0.1]} />
-        <meshStandardMaterial color="#FFD93D" flatShading />
+        <meshBasicMaterial color="#FFD93D" />
       </mesh>
       {/* Shield effect - smaller */}
       {hasShield && (
         <mesh ref={shieldRef}>
-          <sphereGeometry args={[0.6, 8, 8]} />
-          <meshStandardMaterial
-            color="#6ECBFF"
-            transparent
-            opacity={0.3}
-            wireframe
-          />
+          <sphereGeometry args={[0.6, 6, 6]} />
+          <meshBasicMaterial color="#6ECBFF" transparent opacity={0.3} wireframe />
         </mesh>
       )}
     </group>
@@ -141,63 +136,48 @@ function Enemy({
 
   return (
     <group position={position}>
-      <mesh ref={meshRef} castShadow>
+      <mesh ref={meshRef}>
         {isBoss ? (
           <octahedronGeometry args={[size * 0.7]} />
         ) : (
           <boxGeometry args={[size, size, size * 0.6]} />
         )}
-        <meshStandardMaterial
+        <meshBasicMaterial
           color={color}
-          flatShading
-          opacity={0.5 + healthPercent * 0.5}
+          opacity={0.6 + healthPercent * 0.4}
           transparent
-          emissive={isBoss ? color : undefined}
-          emissiveIntensity={isBoss ? 0.3 : 0}
         />
       </mesh>
       {/* Boss has outer ring */}
       {isBoss && (
         <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[size * 0.9, 0.1, 8, 16]} />
-          <meshStandardMaterial color="#FF6B6B" emissive="#FF6B6B" emissiveIntensity={0.5} />
+          <torusGeometry args={[size * 0.9, 0.1, 6, 12]} />
+          <meshBasicMaterial color="#FF6B6B" />
         </mesh>
       )}
       {/* Health indicator */}
       {health < maxHealth && (
         <mesh position={[0, size * 0.8, 0]}>
-          <boxGeometry args={[size * healthPercent, 0.12, 0.12]} />
+          <boxGeometry args={[size * healthPercent, 0.1, 0.1]} />
           <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
         </mesh>
-      )}
-      {/* Boss glow */}
-      {isBoss && (
-        <pointLight color="#FF6B6B" intensity={1} distance={5} />
       )}
     </group>
   );
 }
 
-// Player Bullet component
-function Bullet({ position }: { position: [number, number, number] }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.z += 0.1;
-    }
-  });
-
+// Player Bullet component - optimized (no useFrame)
+const Bullet = memo(function Bullet({ position }: { position: [number, number, number] }) {
   return (
-    <mesh ref={meshRef} position={position}>
+    <mesh position={position}>
       <boxGeometry args={[0.1, 0.25, 0.1]} />
-      <meshStandardMaterial color="#FFD93D" emissive="#FF8C42" emissiveIntensity={0.5} />
+      <meshBasicMaterial color="#FFD93D" />
     </mesh>
   );
-}
+});
 
-// Enemy Bullet component
-function EnemyBulletMesh({
+// Enemy Bullet component - optimized (no useFrame)
+const EnemyBulletMesh = memo(function EnemyBulletMesh({
   position,
   size,
   color
@@ -206,28 +186,16 @@ function EnemyBulletMesh({
   size: number;
   color: string;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-
-  useFrame(() => {
-    if (meshRef.current) {
-      meshRef.current.rotation.z += 0.15;
-    }
-  });
-
   return (
-    <mesh ref={meshRef} position={position}>
-      <sphereGeometry args={[size, 6, 6]} />
-      <meshStandardMaterial
-        color={color}
-        emissive={color}
-        emissiveIntensity={0.6}
-      />
+    <mesh position={position}>
+      <sphereGeometry args={[size, 4, 4]} />
+      <meshBasicMaterial color={color} />
     </mesh>
   );
-}
+});
 
-// Power-up component
-function PowerUpItem({
+// Power-up component - optimized
+const PowerUpItem = memo(function PowerUpItem({
   position,
   type
 }: {
@@ -237,38 +205,28 @@ function PowerUpItem({
   const meshRef = useRef<THREE.Mesh>(null);
   const color = POWER_UP_COLORS[type];
 
-  useFrame((state) => {
+  useFrame(() => {
     if (meshRef.current) {
-      meshRef.current.rotation.y += 0.03;
-      meshRef.current.position.z = Math.sin(state.clock.elapsedTime * 4) * 0.1;
+      meshRef.current.rotation.y += 0.05;
     }
   });
 
   return (
-    <group position={position}>
-      <mesh ref={meshRef}>
-        <octahedronGeometry args={[0.4]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.3}
-          flatShading
-        />
-      </mesh>
-      {/* Glow effect */}
-      <pointLight color={color} intensity={0.5} distance={2} />
-    </group>
+    <mesh ref={meshRef} position={position}>
+      <octahedronGeometry args={[0.35]} />
+      <meshBasicMaterial color={color} />
+    </mesh>
   );
-}
+});
 
-// Background grid
-function BackgroundGrid() {
+// Background grid - simplified
+const BackgroundGrid = memo(function BackgroundGrid() {
   return (
     <group position={[0, 0, -3]}>
-      <gridHelper args={[30, 30, '#2D2D2D', '#1a1a2e']} rotation={[Math.PI / 2, 0, 0]} />
+      <gridHelper args={[30, 15, '#2D2D2D', '#1a1a2e']} rotation={[Math.PI / 2, 0, 0]} />
     </group>
   );
-}
+});
 
 // Game bounds must match game-engine.ts
 const GAME_BOUNDS = {
@@ -381,17 +339,8 @@ function GameScene() {
         far={100}
       />
 
-      {/* Lighting */}
-      <ambientLight intensity={0.6} />
-      <directionalLight
-        position={[5, 10, 5]}
-        intensity={1}
-        castShadow
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-      />
-      <pointLight position={[-5, 5, 5]} intensity={0.5} color="#FF9FF3" />
-      <pointLight position={[5, 5, 5]} intensity={0.5} color="#6ECBFF" />
+      {/* Minimal lighting - meshBasicMaterial doesn't need lights */}
+      <ambientLight intensity={1} />
 
       {/* Background */}
       <BackgroundGrid />
@@ -456,8 +405,14 @@ export default function Game3D() {
   return (
     <div className="w-full h-full">
       <Canvas
-        shadows
-        gl={{ antialias: true, alpha: false }}
+        gl={{
+          antialias: false,
+          alpha: false,
+          powerPreference: 'high-performance',
+          stencil: false,
+          depth: true,
+        }}
+        dpr={[1, 1.5]} // Limit pixel ratio for performance
         style={{ background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
       >
         <GameScene />
