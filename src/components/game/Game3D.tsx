@@ -208,38 +208,35 @@ function BackgroundGrid() {
 // Game scene
 function GameScene() {
   const { gl } = useThree();
-  const {
-    players,
-    enemies,
-    bullets,
-    powerUps,
-    isPlaying,
-    isPaused,
-    activePowerUps,
-    playerAvatar,
-    movePlayer,
-    fireBullet,
-    updateGame,
-  } = useGameStore();
+  // Get render data from store (triggers re-render)
+  const players = useGameStore((s) => s.players);
+  const enemies = useGameStore((s) => s.enemies);
+  const bullets = useGameStore((s) => s.bullets);
+  const powerUps = useGameStore((s) => s.powerUps);
+  const activePowerUps = useGameStore((s) => s.activePowerUps);
+  const playerAvatar = useGameStore((s) => s.playerAvatar);
 
   const lastFireTime = useRef(0);
   const mousePos = useRef({ x: 0, y: -4 });
 
   // Game loop - always runs when playing
   useFrame((state, delta) => {
-    if (isPlaying && !isPaused) {
+    // Get latest state directly from store (not from hook which captures at render time)
+    const store = useGameStore.getState();
+
+    if (store.isPlaying && !store.isPaused) {
       // Update game state (spawns enemies, moves objects, etc.)
-      updateGame(delta);
+      store.updateGame(delta);
 
       // Always fire bullets continuously
-      const fireRate = activePowerUps.rapidFire ? 80 : 150; // ms
+      const fireRate = store.activePowerUps.rapidFire ? 80 : 150; // ms
       if (Date.now() - lastFireTime.current > fireRate) {
-        fireBullet();
+        store.fireBullet();
         lastFireTime.current = Date.now();
       }
 
       // Always move player to cursor position
-      movePlayer(mousePos.current.x, mousePos.current.y);
+      store.movePlayer(mousePos.current.x, mousePos.current.y);
     }
   });
 
