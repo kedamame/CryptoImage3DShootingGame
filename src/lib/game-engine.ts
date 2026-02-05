@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { GameState, WalletAsset, Enemy, Bullet, PowerUp, Player, PowerUpType } from './game-types';
-import { POP_COLORS, BLOCK_COLORS, POWER_UP_DURATION } from './game-types';
+import type { GameState, WalletAsset, Enemy, Bullet, EnemyBullet, PowerUp, Player, PowerUpType, EnemyAttackPattern } from './game-types';
+import { POP_COLORS, BLOCK_COLORS, POWER_UP_DURATION, ENEMY_BULLET_COLORS, BOSS_COLORS, KILLS_PER_BOSS } from './game-types';
 
 const GAME_BOUNDS = {
   minX: -8,
@@ -9,9 +9,11 @@ const GAME_BOUNDS = {
   maxY: 8,
 };
 
-const SPAWN_RATE = 1200; // ms between enemy spawns
-const BLOCK_SPAWN_RATE = 2500; // ms between block spawns
-const POWER_UP_DROP_CHANCE = 0.3;
+const SPAWN_RATE = 600; // ms between enemy spawns (faster)
+const MULTI_SPAWN_COUNT = 3; // Spawn multiple enemies at once
+const BLOCK_SPAWN_RATE = 2000; // ms between block spawns
+const POWER_UP_DROP_CHANCE = 0.25;
+const ENEMY_BULLET_SPEED = 6;
 
 // Counters stored in the store state to avoid module-level issues
 interface GameStore extends GameState {
@@ -21,6 +23,7 @@ interface GameStore extends GameState {
   lastBlockSpawnTime: number;
   enemyIdCounter: number;
   bulletIdCounter: number;
+  enemyBulletIdCounter: number;
   powerUpIdCounter: number;
   setWalletAssets: (assets: WalletAsset[]) => void;
   setPlayerAvatar: (url: string | null) => void;
@@ -33,6 +36,7 @@ interface GameStore extends GameState {
   fireBullet: () => void;
   collectPowerUp: (powerUpId: string) => void;
   takeDamage: () => void;
+  spawnBoss: () => void;
 }
 
 // Default crypto asset for enemies
@@ -49,6 +53,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   players: [{ id: 0, position: { x: 0, y: -3, z: 0 }, isMain: true }],
   enemies: [],
   bullets: [],
+  enemyBullets: [],
   powerUps: [],
   score: 0,
   lives: 3,
@@ -61,12 +66,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
     scoreBoost: false,
   },
   extraShipCount: 0,
+  killCount: 0,
+  bossActive: false,
+  bossesDefeated: 0,
   walletAssets: [],
   playerAvatar: null,
   lastSpawnTime: 0,
   lastBlockSpawnTime: 0,
   enemyIdCounter: 0,
   bulletIdCounter: 0,
+  enemyBulletIdCounter: 0,
   powerUpIdCounter: 0,
 
   setWalletAssets: (assets) => set({ walletAssets: assets }),
@@ -78,6 +87,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       players: [{ id: 0, position: { x: 0, y: -3, z: 0 }, isMain: true }],
       enemies: [],
       bullets: [],
+      enemyBullets: [],
       powerUps: [],
       score: 0,
       lives: 3,
@@ -90,10 +100,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         scoreBoost: false,
       },
       extraShipCount: 0,
+      killCount: 0,
+      bossActive: false,
+      bossesDefeated: 0,
       lastSpawnTime: 0, // Set to 0 so first spawn happens immediately
       lastBlockSpawnTime: 0,
       enemyIdCounter: 0,
       bulletIdCounter: 0,
+      enemyBulletIdCounter: 0,
       powerUpIdCounter: 0,
     });
   },
@@ -207,6 +221,33 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  spawnBoss: () => {
+    set((state) => {
+      const bossPatterns: EnemyAttackPattern[] = ['spiral', 'barrage'];
+      const pattern = bossPatterns[state.bossesDefeated % bossPatterns.length];
+      const boss: Enemy = {
+        id: `boss-${state.enemyIdCounter}`,
+        asset: { id: 'boss', type: 'token', name: 'BOSS', imageUrl: '', contractAddress: '' },
+        position: { x: 0, y: GAME_BOUNDS.maxY + 2, z: 0 },
+        velocity: { x: 0, y: -0.5, z: 0 },
+        health: 30 + state.bossesDefeated * 10,
+        maxHealth: 30 + state.bossesDefeated * 10,
+        size: 2.5,
+        isBlock: false,
+        isBoss: true,
+        attackPattern: pattern,
+        lastFireTime: 0,
+        fireRate: 200,
+      };
+      console.log('Spawning boss!', boss.id);
+      return {
+        enemies: [...state.enemies, boss],
+        enemyIdCounter: state.enemyIdCounter + 1,
+        bossActive: true,
+      };
+    });
+  },
+
   updateGame: (deltaTime) => {
     const state = get();
     if (!state.isPlaying || state.isPaused) return;
@@ -217,37 +258,50 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Get assets or use default
     const assets = state.walletAssets.length > 0 ? state.walletAssets : [DEFAULT_ASSET];
 
-    // Spawn enemy
+    // Spawn multiple enemies at once
     if (state.lastSpawnTime === 0 || currentTime - state.lastSpawnTime > SPAWN_RATE) {
-      const randomAsset = assets[Math.floor(Math.random() * assets.length)];
-      const newEnemy: Enemy = {
-        id: `enemy-${state.enemyIdCounter}`,
-        asset: randomAsset,
-        position: {
-          x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
-          y: GAME_BOUNDS.maxY + 2,
-          z: 0,
-        },
-        velocity: {
-          x: (Math.random() - 0.5) * 3,
-          y: -3 - Math.random() * 2,
-          z: 0,
-        },
-        health: 2,
-        maxHealth: 2,
-        size: 0.8 + Math.random() * 0.4,
-        isBlock: false,
-      };
-      updates.enemies = [...state.enemies, newEnemy];
+      const patterns: EnemyAttackPattern[] = ['straight', 'spread', 'aimed', 'circular'];
+      const newEnemies: Enemy[] = [];
+      const spawnCount = MULTI_SPAWN_COUNT + Math.floor(state.bossesDefeated * 0.5);
+
+      for (let i = 0; i < spawnCount; i++) {
+        const randomAsset = assets[Math.floor(Math.random() * assets.length)];
+        const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+        const fireRate = pattern === 'circular' ? 1500 : pattern === 'spread' ? 1200 : 1000;
+
+        const newEnemy: Enemy = {
+          id: `enemy-${(updates.enemyIdCounter || state.enemyIdCounter) + i}`,
+          asset: randomAsset,
+          position: {
+            x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
+            y: GAME_BOUNDS.maxY + 2 + Math.random() * 2,
+            z: 0,
+          },
+          velocity: {
+            x: (Math.random() - 0.5) * 2,
+            y: -2 - Math.random() * 1.5,
+            z: 0,
+          },
+          health: 2,
+          maxHealth: 2,
+          size: 0.6 + Math.random() * 0.3,
+          isBlock: false,
+          isBoss: false,
+          attackPattern: pattern,
+          lastFireTime: currentTime + Math.random() * 500,
+          fireRate,
+        };
+        newEnemies.push(newEnemy);
+      }
+      updates.enemies = [...state.enemies, ...newEnemies];
       updates.lastSpawnTime = currentTime;
-      updates.enemyIdCounter = state.enemyIdCounter + 1;
-      console.log('Spawned enemy:', newEnemy.id);
+      updates.enemyIdCounter = (updates.enemyIdCounter || state.enemyIdCounter) + spawnCount;
     }
 
     // Spawn block
     if (state.lastBlockSpawnTime === 0 || currentTime - state.lastBlockSpawnTime > BLOCK_SPAWN_RATE) {
       const newBlock: Enemy = {
-        id: `block-${state.enemyIdCounter}`,
+        id: `block-${updates.enemyIdCounter || state.enemyIdCounter}`,
         asset: { id: 'block', type: 'token', name: 'Block', imageUrl: '', contractAddress: '' },
         position: {
           x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
@@ -257,13 +311,16 @@ export const useGameStore = create<GameStore>((set, get) => ({
         velocity: { x: 0, y: -2, z: 0 },
         health: 3,
         maxHealth: 3,
-        size: 1.2,
+        size: 1.0,
         isBlock: true,
+        isBoss: false,
+        attackPattern: 'none',
+        lastFireTime: 0,
+        fireRate: 0,
       };
       updates.enemies = [...(updates.enemies || state.enemies), newBlock];
       updates.lastBlockSpawnTime = currentTime;
       updates.enemyIdCounter = (updates.enemyIdCounter || state.enemyIdCounter) + 1;
-      console.log('Spawned block:', newBlock.id);
     }
 
     // Use updated enemies if spawned, otherwise use state
@@ -297,9 +354,149 @@ export const useGameStore = create<GameStore>((set, get) => ({
       },
     }));
 
+    // Update enemy bullets
+    let enemyBullets = state.enemyBullets.map((b) => ({
+      ...b,
+      position: {
+        x: b.position.x + b.velocity.x * deltaTime,
+        y: b.position.y + b.velocity.y * deltaTime,
+        z: 0,
+      },
+    }));
+
+    // Remove enemy bullets that are off screen
+    enemyBullets = enemyBullets.filter(
+      (b) => b.position.y > GAME_BOUNDS.minY - 2 && b.position.y < GAME_BOUNDS.maxY + 2 &&
+             b.position.x > GAME_BOUNDS.minX - 2 && b.position.x < GAME_BOUNDS.maxX + 2
+    );
+
+    // Enemy firing logic
+    const mainPlayer = state.players.find((p) => p.isMain);
+    const newEnemyBullets: EnemyBullet[] = [];
+    let enemyBulletIdCounter = updates.enemyBulletIdCounter || state.enemyBulletIdCounter;
+
+    for (const enemy of enemies) {
+      if (enemy.isBlock || enemy.attackPattern === 'none') continue;
+      if (enemy.position.y > GAME_BOUNDS.maxY || enemy.position.y < GAME_BOUNDS.minY) continue;
+
+      if (currentTime - enemy.lastFireTime > enemy.fireRate) {
+        enemy.lastFireTime = currentTime;
+        const bulletColor = ENEMY_BULLET_COLORS[Math.floor(Math.random() * ENEMY_BULLET_COLORS.length)];
+
+        switch (enemy.attackPattern) {
+          case 'straight':
+            newEnemyBullets.push({
+              id: `eb-${enemyBulletIdCounter++}`,
+              position: { ...enemy.position },
+              velocity: { x: 0, y: -ENEMY_BULLET_SPEED, z: 0 },
+              size: 0.15,
+              color: bulletColor,
+            });
+            break;
+
+          case 'spread':
+            for (let angle = -30; angle <= 30; angle += 30) {
+              const rad = (angle * Math.PI) / 180;
+              newEnemyBullets.push({
+                id: `eb-${enemyBulletIdCounter++}`,
+                position: { ...enemy.position },
+                velocity: {
+                  x: Math.sin(rad) * ENEMY_BULLET_SPEED * 0.7,
+                  y: -Math.cos(rad) * ENEMY_BULLET_SPEED * 0.7,
+                  z: 0,
+                },
+                size: 0.12,
+                color: bulletColor,
+              });
+            }
+            break;
+
+          case 'aimed':
+            if (mainPlayer) {
+              const dx = mainPlayer.position.x - enemy.position.x;
+              const dy = mainPlayer.position.y - enemy.position.y;
+              const dist = Math.sqrt(dx * dx + dy * dy);
+              if (dist > 0) {
+                newEnemyBullets.push({
+                  id: `eb-${enemyBulletIdCounter++}`,
+                  position: { ...enemy.position },
+                  velocity: {
+                    x: (dx / dist) * ENEMY_BULLET_SPEED,
+                    y: (dy / dist) * ENEMY_BULLET_SPEED,
+                    z: 0,
+                  },
+                  size: 0.18,
+                  color: '#FF6B6B',
+                });
+              }
+            }
+            break;
+
+          case 'circular':
+            for (let i = 0; i < 8; i++) {
+              const angle = (i / 8) * Math.PI * 2;
+              newEnemyBullets.push({
+                id: `eb-${enemyBulletIdCounter++}`,
+                position: { ...enemy.position },
+                velocity: {
+                  x: Math.cos(angle) * ENEMY_BULLET_SPEED * 0.5,
+                  y: Math.sin(angle) * ENEMY_BULLET_SPEED * 0.5,
+                  z: 0,
+                },
+                size: 0.1,
+                color: bulletColor,
+              });
+            }
+            break;
+
+          case 'spiral':
+            // Boss spiral pattern
+            const spiralTime = currentTime / 200;
+            for (let i = 0; i < 4; i++) {
+              const angle = spiralTime + (i / 4) * Math.PI * 2;
+              newEnemyBullets.push({
+                id: `eb-${enemyBulletIdCounter++}`,
+                position: { ...enemy.position },
+                velocity: {
+                  x: Math.cos(angle) * ENEMY_BULLET_SPEED * 0.6,
+                  y: Math.sin(angle) * ENEMY_BULLET_SPEED * 0.6 - 2,
+                  z: 0,
+                },
+                size: 0.2,
+                color: '#A66CFF',
+              });
+            }
+            break;
+
+          case 'barrage':
+            // Boss barrage pattern
+            for (let i = 0; i < 6; i++) {
+              const angle = ((i - 2.5) / 5) * Math.PI * 0.6 - Math.PI / 2;
+              newEnemyBullets.push({
+                id: `eb-${enemyBulletIdCounter++}`,
+                position: { ...enemy.position },
+                velocity: {
+                  x: Math.cos(angle) * ENEMY_BULLET_SPEED * 0.8,
+                  y: Math.sin(angle) * ENEMY_BULLET_SPEED * 0.8,
+                  z: 0,
+                },
+                size: 0.22,
+                color: '#FF6B6B',
+              });
+            }
+            break;
+        }
+      }
+    }
+
+    enemyBullets = [...enemyBullets, ...newEnemyBullets];
+    updates.enemyBulletIdCounter = enemyBulletIdCounter;
+
     // Collision detection
     let scoreIncrease = 0;
+    let killIncrease = 0;
     const destroyedEnemyIds = new Set<string>();
+    let bossWasDestroyed = false;
 
     bullets = bullets.filter((bullet) => {
       if (bullet.position.y > GAME_BOUNDS.maxY + 5) return false;
@@ -313,7 +510,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
           enemy.health -= 1;
           if (enemy.health <= 0) {
             destroyedEnemyIds.add(enemy.id);
-            scoreIncrease += state.activePowerUps.scoreBoost ? (enemy.isBlock ? 100 : 200) : (enemy.isBlock ? 50 : 100);
+            if (enemy.isBoss) {
+              scoreIncrease += state.activePowerUps.scoreBoost ? 2000 : 1000;
+              bossWasDestroyed = true;
+            } else {
+              scoreIncrease += state.activePowerUps.scoreBoost ? (enemy.isBlock ? 100 : 200) : (enemy.isBlock ? 50 : 100);
+              if (!enemy.isBlock) killIncrease++;
+            }
           }
           return false;
         }
@@ -324,34 +527,56 @@ export const useGameStore = create<GameStore>((set, get) => ({
     // Remove destroyed enemies and spawn power-ups
     enemies = enemies.filter((enemy) => {
       if (destroyedEnemyIds.has(enemy.id)) {
-        if (Math.random() < POWER_UP_DROP_CHANCE) {
-          const types: PowerUpType[] = ['extra_ship', 'rapid_fire', 'shield', 'score_boost'];
-          powerUps.push({
-            id: `powerup-${state.powerUpIdCounter}`,
-            type: types[Math.floor(Math.random() * types.length)],
-            position: { ...enemy.position },
-            velocity: { x: 0, y: -1.5, z: 0 },
-          });
-          updates.powerUpIdCounter = (updates.powerUpIdCounter || state.powerUpIdCounter) + 1;
+        // Higher drop chance for boss
+        const dropChance = enemy.isBoss ? 1.0 : POWER_UP_DROP_CHANCE;
+        const dropCount = enemy.isBoss ? 3 : 1;
+        for (let i = 0; i < dropCount; i++) {
+          if (Math.random() < dropChance) {
+            const types: PowerUpType[] = ['extra_ship', 'rapid_fire', 'shield', 'score_boost'];
+            powerUps.push({
+              id: `powerup-${(updates.powerUpIdCounter || state.powerUpIdCounter) + i}`,
+              type: types[Math.floor(Math.random() * types.length)],
+              position: {
+                x: enemy.position.x + (Math.random() - 0.5) * 2,
+                y: enemy.position.y,
+                z: 0,
+              },
+              velocity: { x: 0, y: -1.5, z: 0 },
+            });
+          }
         }
+        updates.powerUpIdCounter = (updates.powerUpIdCounter || state.powerUpIdCounter) + dropCount;
         return false;
       }
       return enemy.position.y > GAME_BOUNDS.minY - 3;
     });
 
-    // Player collision
-    const mainPlayer = state.players.find((p) => p.isMain);
+    // Player collision with enemies
     if (mainPlayer) {
       for (const enemy of enemies) {
         const dx = mainPlayer.position.x - enemy.position.x;
         const dy = mainPlayer.position.y - enemy.position.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < enemy.size + 0.5) {
+        // Smaller hitbox for player (0.3 instead of 0.5)
+        if (dist < enemy.size + 0.3) {
           get().takeDamage();
           enemies = enemies.filter((e) => e.id !== enemy.id);
           break;
         }
       }
+
+      // Player collision with enemy bullets
+      enemyBullets = enemyBullets.filter((b) => {
+        const dx = mainPlayer.position.x - b.position.x;
+        const dy = mainPlayer.position.y - b.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Small hitbox for player vs bullets
+        if (dist < b.size + 0.25) {
+          get().takeDamage();
+          return false;
+        }
+        return true;
+      });
 
       // Power-up collection
       powerUps = powerUps.filter((p) => {
@@ -365,12 +590,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
       });
     }
 
+    // Track kills and boss spawning
+    const newKillCount = state.killCount + killIncrease;
+    const killsForNextBoss = KILLS_PER_BOSS * (state.bossesDefeated + 1);
+    const shouldSpawnBoss = !state.bossActive && newKillCount >= killsForNextBoss;
+
+    // Update boss state
+    let newBossActive = state.bossActive;
+    let newBossesDefeated = state.bossesDefeated;
+    if (bossWasDestroyed) {
+      newBossActive = false;
+      newBossesDefeated = state.bossesDefeated + 1;
+    }
+
     set({
       ...updates,
       enemies,
       bullets,
+      enemyBullets,
       powerUps,
       score: state.score + scoreIncrease,
+      killCount: newKillCount,
+      bossActive: newBossActive,
+      bossesDefeated: newBossesDefeated,
     });
+
+    // Spawn boss after state update
+    if (shouldSpawnBoss) {
+      get().spawnBoss();
+    }
   },
 }));

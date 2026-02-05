@@ -5,7 +5,7 @@ import { Canvas, useFrame, useThree, useLoader } from '@react-three/fiber';
 import { OrthographicCamera, Text, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { useGameStore } from '@/lib/game-engine';
-import { POP_COLORS, BLOCK_COLORS, POWER_UP_COLORS, type PowerUpType } from '@/lib/game-types';
+import { POP_COLORS, BLOCK_COLORS, POWER_UP_COLORS, BOSS_COLORS, type PowerUpType } from '@/lib/game-types';
 
 // Voxel-style box component
 function VoxelBox({
@@ -53,29 +53,29 @@ function PlayerShip({
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Main body */}
+      {/* Main body - smaller for bullet hell */}
       <mesh castShadow>
-        <boxGeometry args={[0.8, 1, 0.4]} />
+        <boxGeometry args={[0.4, 0.5, 0.2]} />
         <meshStandardMaterial color={isMain ? '#6ECBFF' : '#FF9FF3'} flatShading />
       </mesh>
-      {/* Wings */}
-      <mesh position={[-0.6, -0.1, 0]} castShadow>
-        <boxGeometry args={[0.4, 0.6, 0.2]} />
+      {/* Wings - smaller */}
+      <mesh position={[-0.3, -0.05, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.3, 0.1]} />
         <meshStandardMaterial color={isMain ? '#54E6CB' : '#A66CFF'} flatShading />
       </mesh>
-      <mesh position={[0.6, -0.1, 0]} castShadow>
-        <boxGeometry args={[0.4, 0.6, 0.2]} />
+      <mesh position={[0.3, -0.05, 0]} castShadow>
+        <boxGeometry args={[0.2, 0.3, 0.1]} />
         <meshStandardMaterial color={isMain ? '#54E6CB' : '#A66CFF'} flatShading />
       </mesh>
-      {/* Cockpit */}
-      <mesh position={[0, 0.2, 0.15]} castShadow>
-        <boxGeometry args={[0.4, 0.4, 0.2]} />
+      {/* Cockpit - smaller */}
+      <mesh position={[0, 0.1, 0.08]} castShadow>
+        <boxGeometry args={[0.2, 0.2, 0.1]} />
         <meshStandardMaterial color="#FFD93D" flatShading />
       </mesh>
-      {/* Shield effect */}
+      {/* Shield effect - smaller */}
       {hasShield && (
         <mesh ref={shieldRef}>
-          <sphereGeometry args={[1.2, 8, 8]} />
+          <sphereGeometry args={[0.6, 8, 8]} />
           <meshStandardMaterial
             color="#6ECBFF"
             transparent
@@ -95,7 +95,8 @@ function Enemy({
   imageUrl,
   health,
   maxHealth,
-  isBlock
+  isBlock,
+  isBoss
 }: {
   position: [number, number, number];
   size: number;
@@ -103,19 +104,29 @@ function Enemy({
   health: number;
   maxHealth: number;
   isBlock: boolean;
+  isBoss: boolean;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const color = useMemo(() => {
+    if (isBoss) {
+      return BOSS_COLORS[Math.floor(Math.random() * BOSS_COLORS.length)];
+    }
     if (isBlock) {
       return BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
     }
     return POP_COLORS[Math.floor(Math.random() * POP_COLORS.length)];
-  }, [isBlock]);
+  }, [isBlock, isBoss]);
 
   useFrame((state) => {
-    if (meshRef.current && !isBlock) {
-      meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2) * 0.3;
-      meshRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.5) * 0.1;
+    if (meshRef.current) {
+      if (isBoss) {
+        // Boss has a menacing slow rotation
+        meshRef.current.rotation.y += 0.01;
+        meshRef.current.rotation.z = Math.sin(state.clock.elapsedTime) * 0.1;
+      } else if (!isBlock) {
+        meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 2) * 0.3;
+        meshRef.current.rotation.x = Math.cos(state.clock.elapsedTime * 1.5) * 0.1;
+      }
     }
   });
 
@@ -124,26 +135,43 @@ function Enemy({
   return (
     <group position={position}>
       <mesh ref={meshRef} castShadow>
-        <boxGeometry args={[size, size, size * 0.6]} />
+        {isBoss ? (
+          <octahedronGeometry args={[size * 0.7]} />
+        ) : (
+          <boxGeometry args={[size, size, size * 0.6]} />
+        )}
         <meshStandardMaterial
           color={color}
           flatShading
           opacity={0.5 + healthPercent * 0.5}
           transparent
+          emissive={isBoss ? color : undefined}
+          emissiveIntensity={isBoss ? 0.3 : 0}
         />
       </mesh>
+      {/* Boss has outer ring */}
+      {isBoss && (
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[size * 0.9, 0.1, 8, 16]} />
+          <meshStandardMaterial color="#FF6B6B" emissive="#FF6B6B" emissiveIntensity={0.5} />
+        </mesh>
+      )}
       {/* Health indicator */}
       {health < maxHealth && (
-        <mesh position={[0, size * 0.7, 0]}>
-          <boxGeometry args={[size * healthPercent, 0.1, 0.1]} />
+        <mesh position={[0, size * 0.8, 0]}>
+          <boxGeometry args={[size * healthPercent, 0.12, 0.12]} />
           <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
         </mesh>
+      )}
+      {/* Boss glow */}
+      {isBoss && (
+        <pointLight color="#FF6B6B" intensity={1} distance={5} />
       )}
     </group>
   );
 }
 
-// Bullet component
+// Player Bullet component
 function Bullet({ position }: { position: [number, number, number] }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
@@ -155,8 +183,38 @@ function Bullet({ position }: { position: [number, number, number] }) {
 
   return (
     <mesh ref={meshRef} position={position}>
-      <boxGeometry args={[0.15, 0.4, 0.15]} />
+      <boxGeometry args={[0.1, 0.25, 0.1]} />
       <meshStandardMaterial color="#FFD93D" emissive="#FF8C42" emissiveIntensity={0.5} />
+    </mesh>
+  );
+}
+
+// Enemy Bullet component
+function EnemyBulletMesh({
+  position,
+  size,
+  color
+}: {
+  position: [number, number, number];
+  size: number;
+  color: string;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  useFrame(() => {
+    if (meshRef.current) {
+      meshRef.current.rotation.z += 0.15;
+    }
+  });
+
+  return (
+    <mesh ref={meshRef} position={position}>
+      <sphereGeometry args={[size, 6, 6]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={0.6}
+      />
     </mesh>
   );
 }
@@ -220,6 +278,7 @@ function GameScene() {
   const players = useGameStore((s) => s.players);
   const enemies = useGameStore((s) => s.enemies);
   const bullets = useGameStore((s) => s.bullets);
+  const enemyBullets = useGameStore((s) => s.enemyBullets);
   const powerUps = useGameStore((s) => s.powerUps);
   const activePowerUps = useGameStore((s) => s.activePowerUps);
   const playerAvatar = useGameStore((s) => s.playerAvatar);
@@ -343,14 +402,25 @@ function GameScene() {
           health={enemy.health}
           maxHealth={enemy.maxHealth}
           isBlock={enemy.isBlock}
+          isBoss={enemy.isBoss}
         />
       ))}
 
-      {/* Bullets */}
+      {/* Player Bullets */}
       {bullets.map((bullet) => (
         <Bullet
           key={bullet.id}
           position={[bullet.position.x, bullet.position.y, bullet.position.z]}
+        />
+      ))}
+
+      {/* Enemy Bullets */}
+      {enemyBullets.map((bullet) => (
+        <EnemyBulletMesh
+          key={bullet.id}
+          position={[bullet.position.x, bullet.position.y, bullet.position.z]}
+          size={bullet.size}
+          color={bullet.color}
         />
       ))}
 

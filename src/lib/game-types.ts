@@ -9,6 +9,15 @@ export interface WalletAsset {
   tokenId?: string;
 }
 
+export type EnemyAttackPattern =
+  | 'none'        // No attack (blocks)
+  | 'straight'    // Single bullet straight down
+  | 'spread'      // 3-way spread shot
+  | 'aimed'       // Aims at player
+  | 'circular'    // Circular burst
+  | 'spiral'      // Spiral pattern (boss)
+  | 'barrage';    // Heavy barrage (boss)
+
 export interface Enemy {
   id: string;
   asset: WalletAsset;
@@ -18,6 +27,18 @@ export interface Enemy {
   maxHealth: number;
   size: number;
   isBlock: boolean; // Destructible block
+  isBoss: boolean;  // Boss enemy
+  attackPattern: EnemyAttackPattern;
+  lastFireTime: number; // For enemy shooting cooldown
+  fireRate: number;     // ms between shots
+}
+
+export interface EnemyBullet {
+  id: string;
+  position: { x: number; y: number; z: number };
+  velocity: { x: number; y: number; z: number };
+  size: number;
+  color: string;
 }
 
 export interface Bullet {
@@ -44,6 +65,7 @@ export interface GameState {
   players: Player[];
   enemies: Enemy[];
   bullets: Bullet[];
+  enemyBullets: EnemyBullet[];
   powerUps: PowerUp[];
   score: number;
   lives: number;
@@ -56,6 +78,9 @@ export interface GameState {
     scoreBoost: boolean;
   };
   extraShipCount: number;
+  killCount: number;       // Track kills for boss spawn
+  bossActive: boolean;     // Is a boss currently on screen
+  bossesDefeated: number;  // Number of bosses defeated (increases difficulty)
 }
 
 export type PowerUpType = PowerUp['type'];
@@ -87,3 +112,18 @@ export const BLOCK_COLORS = [
   '#4A4A4A', // Dark Gray
   '#6B5B4F', // Dark Brown
 ];
+
+export const ENEMY_BULLET_COLORS = [
+  '#FF6B6B', // Red
+  '#FF9FF3', // Pink
+  '#A66CFF', // Purple
+  '#FF8C42', // Orange
+];
+
+export const BOSS_COLORS = [
+  '#8B0000', // Dark Red
+  '#4B0082', // Indigo
+  '#191970', // Midnight Blue
+];
+
+export const KILLS_PER_BOSS = 20; // Boss spawns every 20 kills
