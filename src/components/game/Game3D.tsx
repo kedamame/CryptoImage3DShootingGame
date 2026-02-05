@@ -253,6 +253,9 @@ function GameScene() {
     const canvas = gl.domElement;
 
     // Convert screen coordinates to game world coordinates
+    // Ship appears slightly above cursor so player can see what they're aiming at
+    const SHIP_OFFSET_Y = 1.5;
+
     const screenToGame = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
       // Normalize to 0-1
@@ -260,7 +263,7 @@ function GameScene() {
       const normalizedY = (clientY - rect.top) / rect.height;
       // Map to game bounds (x: -8 to 8, y: 8 to -5 - note Y is inverted)
       const gameX = GAME_BOUNDS.minX + normalizedX * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX);
-      const gameY = GAME_BOUNDS.maxY - normalizedY * (GAME_BOUNDS.maxY - GAME_BOUNDS.minY);
+      const gameY = GAME_BOUNDS.maxY - normalizedY * (GAME_BOUNDS.maxY - GAME_BOUNDS.minY) + SHIP_OFFSET_Y;
       return { x: gameX, y: gameY };
     };
 
