@@ -60,13 +60,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
   setPlayerAvatar: (url) => set({ playerAvatar: url }),
 
   startGame: () => {
-    lastSpawnTime = 0;
-    lastBlockSpawnTime = 0;
+    const currentTime = Date.now();
+    lastSpawnTime = currentTime;
+    lastBlockSpawnTime = currentTime;
     bulletIdCounter = 0;
     enemyIdCounter = 0;
     powerUpIdCounter = 0;
 
-    set({
+    set((state) => ({
       players: [{ id: 0, position: { x: 0, y: -4, z: 0 }, isMain: true }],
       enemies: [],
       bullets: [],
@@ -82,7 +83,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
         scoreBoost: false,
       },
       extraShipCount: 0,
-    });
+      // Preserve walletAssets, or use demo if empty
+      walletAssets: state.walletAssets.length > 0 ? state.walletAssets : [
+        { id: 'demo-eth', type: 'token', name: 'ETH', symbol: 'ETH', imageUrl: '', contractAddress: '0x0', balance: '1' },
+        { id: 'demo-usdc', type: 'token', name: 'USDC', symbol: 'USDC', imageUrl: '', contractAddress: '0x1', balance: '100' },
+      ],
+    }));
   },
 
   pauseGame: () => set({ isPaused: true }),
@@ -201,10 +207,21 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     const currentTime = Date.now();
 
-    // Spawn enemies
-    if (currentTime - lastSpawnTime > SPAWN_RATE && state.walletAssets.length > 0) {
+    // Default asset for when wallet assets are empty
+    const defaultAsset: WalletAsset = {
+      id: 'default-crypto',
+      type: 'token',
+      name: 'Crypto',
+      symbol: 'CRYPTO',
+      imageUrl: '',
+      contractAddress: '0x0',
+    };
+
+    // Spawn enemies (always spawn, use default asset if no wallet assets)
+    if (currentTime - lastSpawnTime > SPAWN_RATE) {
       lastSpawnTime = currentTime;
-      const randomAsset = state.walletAssets[Math.floor(Math.random() * state.walletAssets.length)];
+      const assets = state.walletAssets.length > 0 ? state.walletAssets : [defaultAsset];
+      const randomAsset = assets[Math.floor(Math.random() * assets.length)];
       const newEnemy: Enemy = {
         id: `enemy-${enemyIdCounter++}`,
         asset: randomAsset,
@@ -223,7 +240,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         size: 0.8 + Math.random() * 0.4,
         isBlock: false,
       };
-      set({ enemies: [...state.enemies, newEnemy] });
+      set((s) => ({ enemies: [...s.enemies, newEnemy] }));
     }
 
     // Spawn blocks
@@ -253,7 +270,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         size: 1.2,
         isBlock: true,
       };
-      set({ enemies: [...state.enemies, newBlock] });
+      set((s) => ({ enemies: [...s.enemies, newBlock] }));
     }
 
     // Update enemy positions
