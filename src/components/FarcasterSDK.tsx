@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback, type ReactNode, createContext, useContext } from 'react';
+import { useEffect, useState, useRef, type ReactNode, createContext, useContext } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 interface FarcasterUser {
@@ -15,14 +15,14 @@ interface FarcasterContextType {
   isInMiniApp: boolean;
   isLoading: boolean;
   user: FarcasterUser | null;
-  connectWallet: () => Promise<void>;
+  provider: any | null;
 }
 
 const FarcasterContext = createContext<FarcasterContextType>({
   isInMiniApp: false,
   isLoading: true,
   user: null,
-  connectWallet: async () => {},
+  provider: null,
 });
 
 export const useFarcaster = () => useContext(FarcasterContext);
@@ -31,19 +31,23 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
   const [isInMiniApp, setIsInMiniApp] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<FarcasterUser | null>(null);
+  const [provider, setProvider] = useState<any>(null);
   const initialized = useRef(false);
 
-  // Initialize SDK and call ready()
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
     const initSDK = async () => {
       try {
-        // Call ready() with await - this tells Farcaster the app is ready
+        // First, call ready() to dismiss the splash screen
         await sdk.actions.ready();
-        console.log('Farcaster SDK ready() called successfully');
+        console.log('Farcaster SDK ready() called');
+      } catch (error) {
+        console.error('Failed to call ready():', error);
+      }
 
+      try {
         // Check if we're in a mini app
         const isMiniApp = await sdk.isInMiniApp();
         setIsInMiniApp(isMiniApp);
@@ -64,15 +68,20 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
               custodyAddress: userData.custodyAddress,
             });
           }
+
+          // Get wallet provider without overriding window.ethereum
+          try {
+            const ethProvider = await sdk.wallet.getEthereumProvider();
+            if (ethProvider) {
+              setProvider(ethProvider);
+              console.log('Farcaster wallet provider obtained');
+            }
+          } catch (e) {
+            console.log('Wallet provider not available:', e);
+          }
         }
       } catch (error) {
-        console.error('Farcaster SDK error:', error);
-        // Try calling ready() even on error to dismiss splash
-        try {
-          await sdk.actions.ready();
-        } catch (e) {
-          console.error('Fallback ready() also failed:', e);
-        }
+        console.error('Farcaster SDK context error:', error);
       } finally {
         setIsLoading(false);
       }
@@ -81,21 +90,8 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
     initSDK();
   }, []);
 
-  const connectWallet = async () => {
-    if (!isInMiniApp) return;
-
-    try {
-      const provider = await sdk.wallet.getEthereumProvider();
-      if (provider) {
-        (window as any).ethereum = provider;
-      }
-    } catch (error) {
-      console.error('Failed to get Farcaster wallet provider:', error);
-    }
-  };
-
   return (
-    <FarcasterContext.Provider value={{ isInMiniApp, isLoading, user, connectWallet }}>
+    <FarcasterContext.Provider value={{ isInMiniApp, isLoading, user, provider }}>
       {children}
     </FarcasterContext.Provider>
   );
