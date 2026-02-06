@@ -1,28 +1,28 @@
 {
   "accountAssociation": {
-    "header": "eyJmaWQiOjAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0",
-    "payload": "eyJkb21haW4iOiJ5b3VyLWFwcC52ZXJjZWwuYXBwIn0",
-    "signature": "REPLACE_WITH_YOUR_SIGNATURE"
+    "header": "eyJmaWQiOjIxMTE4OSwidHlwZSI6ImN1c3RvZHkiLCJrZXkiOiIweEFBZTM5NEQ1MWUyYzBhOTczNWUwQmI2NzdFMTJmMjE1MjVCRWI1NTIifQ",
+    "payload": "eyJkb21haW4iOiJjcnlwdG8taW1hZ2UzLWQtc2hvb3RpbmctZ2FtZS52ZXJjZWwuYXBwIn0",
+    "signature": "M35J4ZkIbEIJFbjsk9en0cE4+galzDmZ4H5/pg6R06U2Y9IJaTSNhzDsrEZCNdwrADxWow9LE0NB5X/IhUpTCRw="
   },
   "frame": {
     "version": "1",
     "name": "Crypto Shooting Game",
-    "iconUrl": "https://your-app.vercel.app/icon.png",
-    "homeUrl": "https://your-app.vercel.app",
-    "imageUrl": "https://your-app.vercel.app/og-image.png",
+    "iconUrl": "https://crypto-image3-d-shooting-game.vercel.app/icon.png",
+    "homeUrl": "https://crypto-image3-d-shooting-game.vercel.app",
+    "imageUrl": "https://crypto-image3-d-shooting-game.vercel.app/og-image.png",
     "buttonTitle": "Play Now",
-    "splashImageUrl": "https://your-app.vercel.app/splash.png",
+    "splashImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/splash.png",
     "splashBackgroundColor": "#1a1a2e",
-    "webhookUrl": "https://your-app.vercel.app/api/webhook"
+    "webhookUrl": "https://crypto-image3-d-shooting-game.vercel.app/api/webhook"
   },
   "miniapp": {
     "version": "next",
     "name": "Crypto Shooting Game",
-    "iconUrl": "https://your-app.vercel.app/icon.png",
-    "homeUrl": "https://your-app.vercel.app",
-    "splashImageUrl": "https://your-app.vercel.app/splash.png",
+    "iconUrl": "https://crypto-image3-d-shooting-game.vercel.app/icon.png",
+    "homeUrl": "https://crypto-image3-d-shooting-game.vercel.app",
+    "splashImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/splash.png",
     "splashBackgroundColor": "#1a1a2e",
-    "webhookUrl": "https://your-app.vercel.app/api/webhook",
+    "webhookUrl": "https://crypto-image3-d-shooting-game.vercel.app/api/webhook",
     "subtitle": "Shoot your tokens!",
     "description": "A 3D shooting game where your wallet tokens and NFTs become enemies! Collect power-ups, defeat bosses, and compete for high scores.",
     "primaryCategory": "games",
@@ -30,8 +30,8 @@
     "tagline": "Your tokens become targets!",
     "ogTitle": "Crypto Shooting Game - Farcaster Mini App",
     "ogDescription": "Play a 3D shooting game with your wallet assets on Farcaster!",
-    "heroImageUrl": "https://your-app.vercel.app/og-image.png",
-    "coverImageUrl": "https://your-app.vercel.app/og-image.png",
+    "heroImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/og-image.png",
+    "coverImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/og-image.png",
     "screenshotUrls": []
   }
 }
