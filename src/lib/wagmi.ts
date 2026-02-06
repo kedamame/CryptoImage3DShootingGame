@@ -15,7 +15,7 @@ export const config = createConfig({
     // Coinbase Wallet
     coinbaseWallet({ appName: 'CryptoImageShootingGame', preference: 'all' }),
     // MetaMask
-    metaMask({ shimDisconnect: true }),
+    metaMask(),
     // WalletConnect (supports many wallets: Rainbow, Trust, Zerion, etc.)
     ...(projectId ? [walletConnect({ projectId, showQrModal: true })] : []),
   ],
