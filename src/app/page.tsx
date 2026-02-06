@@ -35,7 +35,7 @@ const preloadTextures = async (imageUrls: string[]): Promise<void> => {
 };
 
 export default function Home() {
-  const { isInMiniApp, isLoading: farcasterLoading, user, connectWallet } = useFarcaster();
+  const { isInMiniApp, isLoading: farcasterLoading, user, provider } = useFarcaster();
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
@@ -181,8 +181,7 @@ export default function Home() {
   // Handle wallet connection
   const handleConnect = async () => {
     if (isInMiniApp) {
-      await connectWallet();
-      // Try to connect with injected (Farcaster wallet)
+      // In Mini App, try to connect with injected (Farcaster wallet)
       const injectedConnector = connectors.find((c) => c.id === 'injected');
       if (injectedConnector) {
         connect({ connector: injectedConnector });
