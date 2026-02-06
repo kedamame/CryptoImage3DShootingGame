@@ -1,7 +1,70 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useGameStore } from '@/lib/game-engine';
-import { POWER_UP_COLORS } from '@/lib/game-types';
+import { POWER_UP_COLORS, POWER_UP_DURATION } from '@/lib/game-types';
+
+// Component to show power-up timer with circular progress
+function PowerUpTimer({ expireTime, color, label }: { expireTime: number; color: string; label: string }) {
+  const [remaining, setRemaining] = useState(0);
+
+  useEffect(() => {
+    if (expireTime === 0) {
+      setRemaining(0);
+      return;
+    }
+
+    const updateRemaining = () => {
+      const left = Math.max(0, expireTime - Date.now());
+      setRemaining(left);
+    };
+
+    updateRemaining();
+    const interval = setInterval(updateRemaining, 100);
+    return () => clearInterval(interval);
+  }, [expireTime]);
+
+  if (remaining === 0) return null;
+
+  const progress = remaining / POWER_UP_DURATION;
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="relative w-8 h-8">
+        {/* Background circle */}
+        <svg className="w-8 h-8 -rotate-90">
+          <circle
+            cx="16"
+            cy="16"
+            r="12"
+            fill="none"
+            stroke="rgba(255,255,255,0.2)"
+            strokeWidth="3"
+          />
+          <circle
+            cx="16"
+            cy="16"
+            r="12"
+            fill="none"
+            stroke={color}
+            strokeWidth="3"
+            strokeDasharray={75.4}
+            strokeDashoffset={75.4 * (1 - progress)}
+            strokeLinecap="round"
+          />
+        </svg>
+        {/* Inner timer number */}
+        <div
+          className="absolute inset-0 flex items-center justify-center text-xs font-bold"
+          style={{ color }}
+        >
+          {Math.ceil(remaining / 1000)}
+        </div>
+      </div>
+      <span className="text-white/70 text-xs">{label}</span>
+    </div>
+  );
+}
 
 export function GameUI() {
   const {
@@ -11,6 +74,7 @@ export function GameUI() {
     isPaused,
     isGameOver,
     activePowerUps,
+    powerUpExpireTimes,
     extraShipCount,
     startGame,
     pauseGame,
@@ -51,27 +115,34 @@ export function GameUI() {
               </div>
             )}
 
-            {/* Active power-ups */}
-            <div className="flex gap-1">
+            {/* Active power-ups with timers */}
+            <div className="flex flex-col gap-1">
               {activePowerUps.rapidFire && (
-                <div
-                  className="w-5 h-5 rounded animate-pulse"
-                  style={{ backgroundColor: POWER_UP_COLORS.rapid_fire }}
-                  title="Rapid Fire"
+                <PowerUpTimer
+                  expireTime={powerUpExpireTimes?.rapidFire || 0}
+                  color={POWER_UP_COLORS.rapid_fire}
+                  label="Rapid"
                 />
               )}
               {activePowerUps.shield && (
-                <div
-                  className="w-5 h-5 rounded animate-pulse"
-                  style={{ backgroundColor: POWER_UP_COLORS.shield }}
-                  title="Shield"
+                <PowerUpTimer
+                  expireTime={powerUpExpireTimes?.shield || 0}
+                  color={POWER_UP_COLORS.shield}
+                  label="Shield"
                 />
               )}
               {activePowerUps.scoreBoost && (
-                <div
-                  className="w-5 h-5 rounded animate-pulse"
-                  style={{ backgroundColor: POWER_UP_COLORS.score_boost }}
-                  title="Score Boost"
+                <PowerUpTimer
+                  expireTime={powerUpExpireTimes?.scoreBoost || 0}
+                  color={POWER_UP_COLORS.score_boost}
+                  label="x2"
+                />
+              )}
+              {activePowerUps.tripleShot && (
+                <PowerUpTimer
+                  expireTime={powerUpExpireTimes?.tripleShot || 0}
+                  color={POWER_UP_COLORS.triple_shot}
+                  label="Triple"
                 />
               )}
             </div>
@@ -133,6 +204,10 @@ export function GameUI() {
             <div className="flex items-center gap-1">
               <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.score_boost }} />
               <span className="text-white/70">x2</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.triple_shot }} />
+              <span className="text-white/70">Triple</span>
             </div>
           </div>
         </div>
