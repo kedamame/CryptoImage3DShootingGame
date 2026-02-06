@@ -35,6 +35,11 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
   useEffect(() => {
     const load = async () => {
       try {
+        // Always call ready() first to dismiss splash screen
+        // This should be called as early as possible
+        sdk.actions.ready({});
+        console.log('Farcaster SDK ready() called');
+
         const isMiniApp = await sdk.isInMiniApp();
         setIsInMiniApp(isMiniApp);
         console.log('Is in Mini App:', isMiniApp);
@@ -53,17 +58,9 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
               custodyAddress: userData.custodyAddress,
             });
           }
-
-          // Important: ready() must be called to display Mini App
-          sdk.actions.ready({});
         }
       } catch (error) {
         console.error('Farcaster SDK error:', error);
-        try {
-          sdk.actions.ready({});
-        } catch (e) {
-          console.error('Failed to call ready:', e);
-        }
       } finally {
         setIsLoading(false);
       }
