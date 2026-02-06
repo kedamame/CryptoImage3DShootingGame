@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, type ReactNode, createContext, useContext } from 'react';
+import { useEffect, useState, useRef, useCallback, type ReactNode, createContext, useContext } from 'react';
 import { sdk } from '@farcaster/miniapp-sdk';
 
 interface FarcasterUser {
@@ -31,30 +31,26 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
   const [isInMiniApp, setIsInMiniApp] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<FarcasterUser | null>(null);
-  const readyCalled = useRef(false);
+  const initialized = useRef(false);
 
-  // Call ready() synchronously on first render - this must happen immediately
+  // Initialize SDK and call ready()
   useEffect(() => {
-    if (!readyCalled.current) {
-      readyCalled.current = true;
-      try {
-        sdk.actions.ready({});
-        console.log('Farcaster SDK ready() called synchronously');
-      } catch (error) {
-        console.error('Failed to call ready():', error);
-      }
-    }
-  }, []);
+    if (initialized.current) return;
+    initialized.current = true;
 
-  // Load context and user data asynchronously
-  useEffect(() => {
-    const loadContext = async () => {
+    const initSDK = async () => {
       try {
+        // Call ready() with await - this tells Farcaster the app is ready
+        await sdk.actions.ready();
+        console.log('Farcaster SDK ready() called successfully');
+
+        // Check if we're in a mini app
         const isMiniApp = await sdk.isInMiniApp();
         setIsInMiniApp(isMiniApp);
         console.log('Is in Mini App:', isMiniApp);
 
         if (isMiniApp) {
+          // Get context and user data
           const context = await sdk.context;
           console.log('Farcaster context:', context);
 
@@ -70,12 +66,19 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
           }
         }
       } catch (error) {
-        console.error('Farcaster SDK context error:', error);
+        console.error('Farcaster SDK error:', error);
+        // Try calling ready() even on error to dismiss splash
+        try {
+          await sdk.actions.ready();
+        } catch (e) {
+          console.error('Fallback ready() also failed:', e);
+        }
       } finally {
         setIsLoading(false);
       }
     };
-    loadContext();
+
+    initSDK();
   }, []);
 
   const connectWallet = async () => {
