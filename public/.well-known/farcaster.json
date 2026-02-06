@@ -1,19 +1,37 @@
 {
   "accountAssociation": {
-    "header": "BASE64_ENCODED_HEADER",
-    "payload": "BASE64_ENCODED_PAYLOAD",
-    "signature": "SIGNATURE"
+    "header": "eyJmaWQiOjAsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHgwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwIn0",
+    "payload": "eyJkb21haW4iOiJ5b3VyLWFwcC52ZXJjZWwuYXBwIn0",
+    "signature": "REPLACE_WITH_YOUR_SIGNATURE"
+  },
+  "frame": {
+    "version": "1",
+    "name": "Crypto Shooting Game",
+    "iconUrl": "https://your-app.vercel.app/icon.png",
+    "homeUrl": "https://your-app.vercel.app",
+    "imageUrl": "https://your-app.vercel.app/og-image.png",
+    "buttonTitle": "Play Now",
+    "splashImageUrl": "https://your-app.vercel.app/splash.png",
+    "splashBackgroundColor": "#1a1a2e",
+    "webhookUrl": "https://your-app.vercel.app/api/webhook"
   },
   "miniapp": {
-    "version": "1",
-    "name": "CryptoImageShootingGame",
-    "iconUrl": "https://YOUR_DOMAIN/icon.svg",
-    "homeUrl": "https://YOUR_DOMAIN",
-    "splashImageUrl": "https://YOUR_DOMAIN/splash.svg",
+    "version": "next",
+    "name": "Crypto Shooting Game",
+    "iconUrl": "https://your-app.vercel.app/icon.png",
+    "homeUrl": "https://your-app.vercel.app",
+    "splashImageUrl": "https://your-app.vercel.app/splash.png",
     "splashBackgroundColor": "#1a1a2e",
-    "webhookUrl": "https://YOUR_DOMAIN/api/webhook",
+    "webhookUrl": "https://your-app.vercel.app/api/webhook",
     "subtitle": "Shoot your tokens!",
-    "description": "A fun 3D shooting game where your wallet tokens and NFTs become enemies! Collect power-ups, climb the leaderboard, and compete with friends.",
-    "primaryCategory": "entertainment"
+    "description": "A 3D shooting game where your wallet tokens and NFTs become enemies! Collect power-ups, defeat bosses, and compete for high scores.",
+    "primaryCategory": "games",
+    "tags": ["gaming", "crypto", "nft", "shooting"],
+    "tagline": "Your tokens become targets!",
+    "ogTitle": "Crypto Shooting Game - Farcaster Mini App",
+    "ogDescription": "Play a 3D shooting game with your wallet assets on Farcaster!",
+    "heroImageUrl": "https://your-app.vercel.app/og-image.png",
+    "coverImageUrl": "https://your-app.vercel.app/og-image.png",
+    "screenshotUrls": []
   }
 }
