@@ -16,22 +16,14 @@
     "webhookUrl": "https://crypto-image3-d-shooting-game.vercel.app/api/webhook"
   },
   "miniapp": {
-    "version": "next",
+    "version": "1",
     "name": "Crypto Shooting Game",
     "iconUrl": "https://crypto-image3-d-shooting-game.vercel.app/icon.png",
     "homeUrl": "https://crypto-image3-d-shooting-game.vercel.app",
+    "imageUrl": "https://crypto-image3-d-shooting-game.vercel.app/og-image.png",
+    "buttonTitle": "Play Now",
     "splashImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/splash.png",
     "splashBackgroundColor": "#1a1a2e",
-    "webhookUrl": "https://crypto-image3-d-shooting-game.vercel.app/api/webhook",
-    "subtitle": "Shoot your tokens!",
-    "description": "A 3D shooting game where your wallet tokens and NFTs become enemies! Collect power-ups, defeat bosses, and compete for high scores.",
-    "primaryCategory": "games",
-    "tags": ["gaming", "crypto", "nft", "shooting"],
-    "tagline": "Your tokens become targets!",
-    "ogTitle": "Crypto Shooting Game - Farcaster Mini App",
-    "ogDescription": "Play a 3D shooting game with your wallet assets on Farcaster!",
-    "heroImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/og-image.png",
-    "coverImageUrl": "https://crypto-image3-d-shooting-game.vercel.app/og-image.png",
-    "screenshotUrls": []
+    "webhookUrl": "https://crypto-image3-d-shooting-game.vercel.app/api/webhook"
   }
 }
