@@ -78,7 +78,7 @@ export default function OGImage() {
             maxWidth: 700,
           }}
         >
-          A 3D shooting game where your wallet tokens and NFTs become enemies
+          A shooting game where your wallet tokens and NFTs become enemies
         </div>
 
         {/* Enemy blocks at bottom */}
