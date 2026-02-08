@@ -420,17 +420,26 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   spawnBoss: () => {
     set((state) => {
-      // Define boss configurations with AABB hitboxes matching visual shapes
-      // hitbox: halfW = half-width, top/bottom = Y extent relative to center (s = size * 0.8)
+      // Define boss configurations with AABB hitboxes matching BODY CORE only
+      // hitbox: halfW = half-width of main body, top/bottom = Y extent (s = size * 0.8)
+      // Excludes wings, arms, trails, sparkles - only solid body + head
       const bossConfigs: { pattern: EnemyAttackPattern; bossType: BossType; fireRate: number; size: number; hitbox: { halfW: number; top: number; bottom: number } }[] = [
-        { pattern: 'spiral', bossType: 'demon', fireRate: 250, size: 2.5, hitbox: { halfW: 1.8 * 2.5 * 0.8, top: 2.0 * 2.5 * 0.8, bottom: 0.75 * 2.5 * 0.8 } },
-        { pattern: 'barrage', bossType: 'mech', fireRate: 400, size: 2.8, hitbox: { halfW: 1.7 * 2.8 * 0.8, top: 1.5 * 2.8 * 0.8, bottom: 0.8 * 2.8 * 0.8 } },
-        { pattern: 'laser', bossType: 'dragon', fireRate: 200, size: 2.6, hitbox: { halfW: 2.0 * 2.6 * 0.8, top: 1.7 * 2.6 * 0.8, bottom: 0.6 * 2.6 * 0.8 } },
-        { pattern: 'ring', bossType: 'golem', fireRate: 500, size: 3.0, hitbox: { halfW: 2.0 * 3.0 * 0.8, top: 2.0 * 3.0 * 0.8, bottom: 1.3 * 3.0 * 0.8 } },
-        { pattern: 'homing', bossType: 'phantom', fireRate: 600, size: 2.4, hitbox: { halfW: 1.55 * 2.4 * 0.8, top: 1.8 * 2.4 * 0.8, bottom: 1.3 * 2.4 * 0.8 } },
-        { pattern: 'burst', bossType: 'sprite', fireRate: 350, size: 1.5, hitbox: { halfW: 0.95 * 1.5 * 0.8, top: 1.2 * 1.5 * 0.8, bottom: 0.8 * 1.5 * 0.8 } },
+        // Demon: body s*2 wide, head s*1.5 wide. Excludes wings at ±s*1.8
+        { pattern: 'spiral', bossType: 'demon', fireRate: 250, size: 2.5, hitbox: { halfW: 1.0 * 2.5 * 0.8, top: 1.5 * 2.5 * 0.8, bottom: 0.75 * 2.5 * 0.8 } },
+        // Mech: body s*2.2 wide. Excludes shoulder cannons at ±s*1.55, arms at ±s*1.7
+        { pattern: 'barrage', bossType: 'mech', fireRate: 400, size: 2.8, hitbox: { halfW: 1.1 * 2.8 * 0.8, top: 1.5 * 2.8 * 0.8, bottom: 0.8 * 2.8 * 0.8 } },
+        // Dragon: body s*2.4 wide, head+neck narrow. Excludes wings at ±s*2.0, tail
+        { pattern: 'laser', bossType: 'dragon', fireRate: 200, size: 2.6, hitbox: { halfW: 1.2 * 2.6 * 0.8, top: 1.7 * 2.6 * 0.8, bottom: 0.6 * 2.6 * 0.8 } },
+        // Golem: body s*2.5 wide. Excludes massive arms at ±s*2.0, fists, crystals
+        { pattern: 'ring', bossType: 'golem', fireRate: 500, size: 3.0, hitbox: { halfW: 1.25 * 3.0 * 0.8, top: 1.55 * 3.0 * 0.8, bottom: 0.9 * 3.0 * 0.8 } },
+        // Phantom: body s*1.8 wide. Excludes floating hands at ±s*1.55, wisps, aura
+        { pattern: 'homing', bossType: 'phantom', fireRate: 600, size: 2.4, hitbox: { halfW: 0.9 * 2.4 * 0.8, top: 1.8 * 2.4 * 0.8, bottom: 1.0 * 2.4 * 0.8 } },
+        // Sprite: body s*1.0, head s*0.8. Excludes wings at ±s*0.95, sparkle trail
+        { pattern: 'burst', bossType: 'sprite', fireRate: 350, size: 1.5, hitbox: { halfW: 0.5 * 1.5 * 0.8, top: 1.0 * 1.5 * 0.8, bottom: 0.45 * 1.5 * 0.8 } },
+        // Hydra: body s*2.2 wide, 3 heads. Excludes tail, scales
         { pattern: 'hydra', bossType: 'hydra', fireRate: 300, size: 2.7, hitbox: { halfW: 1.1 * 2.7 * 0.8, top: 1.8 * 2.7 * 0.8, bottom: 0.7 * 2.7 * 0.8 } },
-        { pattern: 'kraken', bossType: 'kraken', fireRate: 350, size: 3.2, hitbox: { halfW: 1.25 * 3.2 * 0.8, top: 1.7 * 3.2 * 0.8, bottom: 1.25 * 3.2 * 0.8 } },
+        // Kraken: body s*2.5 wide. Excludes tentacles below body
+        { pattern: 'kraken', bossType: 'kraken', fireRate: 350, size: 3.2, hitbox: { halfW: 1.25 * 3.2 * 0.8, top: 1.7 * 3.2 * 0.8, bottom: 0.6 * 3.2 * 0.8 } },
       ];
 
       const config = bossConfigs[state.bossesDefeated % bossConfigs.length];
