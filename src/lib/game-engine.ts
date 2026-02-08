@@ -1381,7 +1381,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let bossWasDestroyed = false;
 
     bullets = bullets.filter((bullet) => {
-      if (bullet.position.y > GAME_BOUNDS.maxY + 5) return false;
+      if (bullet.position.y > GAME_BOUNDS.maxY + 1) return false; // Remove at top wall
 
       for (const enemy of enemies) {
         const dx = bullet.position.x - enemy.position.x;

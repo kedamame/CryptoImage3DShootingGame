@@ -1563,11 +1563,12 @@ const VoxelTerrain = memo(function VoxelTerrain() {
     return walls;
   }, []);
 
-  // Top wall/ceiling blocks
+  // Top wall/ceiling blocks - thick enough to hide enemy spawns
   const topWall = useMemo(() => {
     const blocks: { pos: [number, number, number]; color: string; size: [number, number, number] }[] = [];
     const wallColors = ['#0f1a2a', '#1a2a3a', '#0a1520', '#152535'];
 
+    // Voxel-style top wall (visible edge)
     for (let x = -10; x <= 10; x += 1.0) {
       for (let layer = 0; layer < 2; layer++) {
         const yPos = 9.5 + layer * 0.8;
@@ -1634,10 +1635,15 @@ const VoxelTerrain = memo(function VoxelTerrain() {
         </mesh>
       ))}
 
-      {/* Edge glow effect (simulated fog at top) */}
-      <mesh position={[0, 12, -2]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[20, 4]} />
-        <meshBasicMaterial color="#0f3460" transparent opacity={0.8} />
+      {/* Large solid cover above top wall to hide enemy spawns */}
+      <mesh position={[0, 14, 0]}>
+        <boxGeometry args={[22, 8, 3]} />
+        <meshBasicMaterial color="#0a1520" />
+      </mesh>
+      {/* Gradient fade at top edge for smooth transition */}
+      <mesh position={[0, 9.8, 1]}>
+        <planeGeometry args={[22, 1.5]} />
+        <meshBasicMaterial color="#0a1520" transparent opacity={0.6} />
       </mesh>
     </group>
   );
@@ -1715,30 +1721,31 @@ function GameScene() {
 
   // Target position for smooth movement (used for touch re-tap interpolation)
   const shipTargetRef = useRef({ x: 0, y: -3 });
-  const isTouchingRef = useRef(false);
-  const isTouchInputRef = useRef(false); // Track if current input is touch
+  const isTouchDraggingRef = useRef(false); // true once touchmove fires (finger dragging)
 
-  // Smooth ship movement interpolation in useFrame
+  // Smooth ship movement for re-tap only (not during drag)
   useFrame(() => {
     const store = useGameStore.getState();
     if (!store.isPlaying || store.isPaused) return;
 
-    const target = shipTargetRef.current;
-    const current = mainShipPositionRef.current;
-    const dx = target.x - current.x;
-    const dy = target.y - current.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
+    // Only interpolate when NOT dragging (i.e. re-tap transition before first touchmove)
+    if (!isTouchDraggingRef.current) {
+      const target = shipTargetRef.current;
+      const current = mainShipPositionRef.current;
+      const dx = target.x - current.x;
+      const dy = target.y - current.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist > 0.01) {
-      // Smooth movement: lerp speed depends on whether touching (dragging) or re-tapping
-      const lerpSpeed = isTouchingRef.current ? 0.35 : 0.18;
-      const newX = current.x + dx * lerpSpeed;
-      const newY = current.y + dy * lerpSpeed;
-      mainShipPositionRef.current = { x: newX, y: newY };
-      mousePos.current = { x: newX, y: newY };
-    } else {
-      mainShipPositionRef.current = target;
-      mousePos.current = target;
+      if (dist > 0.01) {
+        const lerpSpeed = 0.15;
+        const newX = current.x + dx * lerpSpeed;
+        const newY = current.y + dy * lerpSpeed;
+        mainShipPositionRef.current = { x: newX, y: newY };
+        mousePos.current = { x: newX, y: newY };
+      } else {
+        mainShipPositionRef.current = target;
+        mousePos.current = target;
+      }
     }
   });
 
@@ -1748,7 +1755,7 @@ function GameScene() {
 
     // Ship offset: higher for touch (finger obscures ship) vs mouse
     const SHIP_OFFSET_Y_MOUSE = 0.8;
-    const SHIP_OFFSET_Y_TOUCH = 3.25; // Much higher so ship is visible above finger
+    const SHIP_OFFSET_Y_TOUCH = 4.0; // 1.6x offset so ship is visible above finger
 
     // Camera settings for coordinate calculation
     const CAMERA_Y = 1.5; // Camera y position
@@ -1779,9 +1786,8 @@ function GameScene() {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      isTouchInputRef.current = false;
       const pos = screenToGame(e.clientX, e.clientY, false);
-      // Mouse: direct position (no interpolation needed, always tracking)
+      // Mouse: direct position (no interpolation)
       mousePos.current = pos;
       mainShipPositionRef.current = pos;
       shipTargetRef.current = pos;
@@ -1790,7 +1796,7 @@ function GameScene() {
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        isTouchingRef.current = true;
+        isTouchDraggingRef.current = true;
         const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
         // Direct position update during drag - no lag
         mainShipPositionRef.current = pos;
@@ -1801,17 +1807,18 @@ function GameScene() {
 
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
-      isTouchInputRef.current = true;
-      isTouchingRef.current = true;
+      // Don't set dragging yet - let useFrame interpolate to target
+      // isTouchDraggingRef becomes true on first touchmove
+      isTouchDraggingRef.current = false;
       if (e.touches.length > 0) {
         const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
-        // Set target - ship will smoothly move there
+        // Set target only - ship will smoothly interpolate there
         shipTargetRef.current = pos;
       }
     };
 
     const handleTouchEnd = () => {
-      isTouchingRef.current = false;
+      isTouchDraggingRef.current = false;
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
