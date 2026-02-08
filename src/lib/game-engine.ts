@@ -526,66 +526,130 @@ export const useGameStore = create<GameStore>((set, get) => ({
         effectiveSpawnCount = spawnCount;
       }
 
-      for (let i = 0; i < effectiveSpawnCount; i++) {
-        const randomAsset = assets[Math.floor(Math.random() * assets.length)];
-        // During fever time, all enemies don't attack (100% non-attacking)
-        const isFeverEnemy = isFeverActive;
-        const pattern = isFeverEnemy ? 'none' : availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
-        const fireRate = pattern === 'none' ? 0 : pattern === 'circular' ? 1500 : pattern === 'spread' ? 1200 : pattern === 'aimed' ? 800 : pattern === 'wave' ? 600 : pattern === 'burst' ? 1800 : 1000;
+      // 5% chance for formation spawn (only when no boss and no fever)
+      const isFormation = !inBossPhase && !isFeverActive && Math.random() < 0.05;
 
-        // Enemy speed increases with difficulty over 10 minutes
+      if (isFormation) {
+        // Formation spawn: 3-5 enemies in a pattern
+        const formationCount = 3 + Math.floor(Math.random() * 3); // 3-5
+        const formationType = Math.floor(Math.random() * 3); // 0=V, 1=horizontal, 2=vertical
+        const centerX = GAME_BOUNDS.minX + 2 + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX - 4);
+        const baseY = GAME_BOUNDS.maxY + 3;
         const baseSpeed = ENEMY_SPEED_MIN + (ENEMY_SPEED_MAX - ENEMY_SPEED_MIN) * difficultyProgress;
-
-        // Enemy health increases over time (no upper limit)
-        // Base health 2 (reduced), increases by 1 every 180 seconds
-        // Fever enemies always have 1 HP for easy kills
+        const sharedVelX = (Math.random() - 0.5) * 1; // Shared horizontal drift
+        const sharedVelY = -baseSpeed - Math.random() * 0.5;
+        const formationAsset = assets[Math.floor(Math.random() * assets.length)];
+        const pattern = availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+        const fireRate = pattern === 'none' ? 0 : pattern === 'circular' ? 1500 : pattern === 'spread' ? 1200 : pattern === 'aimed' ? 800 : pattern === 'wave' ? 600 : pattern === 'burst' ? 1800 : 1000;
         const healthBonus = Math.floor(elapsedTime / 180000);
-        let enemyHealth = isFeverEnemy ? 1 : 2 + healthBonus; // Fever enemies have 1 HP
+        const enemyHealth = 2 + healthBonus;
 
-        // 0.1% chance for shiny enemy (rare, more HP, drops 5 items)
-        const isShiny = Math.random() < 0.001;
+        for (let i = 0; i < formationCount; i++) {
+          let offsetX = 0;
+          let offsetY = 0;
+          const spacing = 1.2;
 
-        // 20% chance for elite enemy (more HP, higher drop rate) - only if not shiny
-        const isElite = !isShiny && Math.random() < 0.2;
+          if (formationType === 0) {
+            // V-formation
+            const half = Math.floor(formationCount / 2);
+            const relIdx = i - half;
+            offsetX = relIdx * spacing;
+            offsetY = -Math.abs(relIdx) * spacing * 0.7;
+          } else if (formationType === 1) {
+            // Horizontal line
+            const half = (formationCount - 1) / 2;
+            offsetX = (i - half) * spacing;
+          } else {
+            // Vertical line
+            offsetY = -i * spacing * 0.8;
+          }
 
-        if (isShiny) {
-          enemyHealth = enemyHealth * 4; // Shiny enemies have 4x health
-        } else if (isElite) {
-          enemyHealth = enemyHealth * 6; // Elite enemies have 6x health
+          const posX = Math.max(GAME_BOUNDS.minX + 0.5, Math.min(GAME_BOUNDS.maxX - 0.5, centerX + offsetX));
+
+          const newEnemy: Enemy = {
+            id: `enemy-${(updates.enemyIdCounter || state.enemyIdCounter) + i}`,
+            asset: formationAsset,
+            position: { x: posX, y: baseY + offsetY, z: 0 },
+            velocity: { x: sharedVelX, y: sharedVelY, z: 0 },
+            health: enemyHealth,
+            maxHealth: enemyHealth,
+            size: 0.6,
+            isBlock: false,
+            isBoss: false,
+            isShiny: false,
+            isElite: false,
+            attackPattern: pattern,
+            lastFireTime: currentTime + Math.random() * 500,
+            fireRate,
+          };
+          newEnemies.push(newEnemy);
         }
+        updates.enemyIdCounter = (updates.enemyIdCounter || state.enemyIdCounter) + formationCount;
+      } else {
+        // Normal spawn
+        for (let i = 0; i < effectiveSpawnCount; i++) {
+          const randomAsset = assets[Math.floor(Math.random() * assets.length)];
+          // During fever time, all enemies don't attack (100% non-attacking)
+          const isFeverEnemy = isFeverActive;
+          const pattern = isFeverEnemy ? 'none' : availablePatterns[Math.floor(Math.random() * availablePatterns.length)];
+          const fireRate = pattern === 'none' ? 0 : pattern === 'circular' ? 1500 : pattern === 'spread' ? 1200 : pattern === 'aimed' ? 800 : pattern === 'wave' ? 600 : pattern === 'burst' ? 1800 : 1000;
 
-        // Size based on enemy type: shiny > elite > regular
-        const enemySize = isShiny ? 0.9 + Math.random() * 0.2 : (isElite ? 0.75 + Math.random() * 0.2 : 0.5 + Math.random() * 0.25);
+          // Enemy speed increases with difficulty over 10 minutes
+          const baseSpeed = ENEMY_SPEED_MIN + (ENEMY_SPEED_MAX - ENEMY_SPEED_MIN) * difficultyProgress;
 
-        const newEnemy: Enemy = {
-          id: `enemy-${(updates.enemyIdCounter || state.enemyIdCounter) + i}`,
-          asset: randomAsset,
-          position: {
-            x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
-            y: GAME_BOUNDS.maxY + 2 + Math.random() * 2,
-            z: 0,
-          },
-          velocity: {
-            x: (Math.random() - 0.5) * 2,
-            y: -baseSpeed - Math.random() * 1,
-            z: 0,
-          },
-          health: enemyHealth,
-          maxHealth: enemyHealth,
-          size: enemySize,
-          isBlock: false,
-          isBoss: false,
-          isShiny,
-          isElite,
-          attackPattern: pattern,
-          lastFireTime: currentTime + Math.random() * 500,
-          fireRate,
-        };
-        newEnemies.push(newEnemy);
+          // Enemy health increases over time (no upper limit)
+          // Base health 2 (reduced), increases by 1 every 180 seconds
+          // Fever enemies always have 1 HP for easy kills
+          const healthBonus = Math.floor(elapsedTime / 180000);
+          let enemyHealth = isFeverEnemy ? 1 : 2 + healthBonus; // Fever enemies have 1 HP
+
+          // 0.1% chance for shiny enemy (rare, more HP, drops 5 items)
+          const isShiny = Math.random() < 0.001;
+
+          // 20% chance for elite enemy (more HP, higher drop rate) - only if not shiny
+          const isElite = !isShiny && Math.random() < 0.2;
+
+          if (isShiny) {
+            enemyHealth = enemyHealth * 4; // Shiny enemies have 4x health
+          } else if (isElite) {
+            enemyHealth = enemyHealth * 6; // Elite enemies have 6x health
+          }
+
+          // Size based on enemy type: shiny > elite > regular
+          const enemySize = isShiny ? 0.9 + Math.random() * 0.2 : (isElite ? 0.75 + Math.random() * 0.2 : 0.5 + Math.random() * 0.25);
+
+          const newEnemy: Enemy = {
+            id: `enemy-${(updates.enemyIdCounter || state.enemyIdCounter) + i}`,
+            asset: randomAsset,
+            position: {
+              x: GAME_BOUNDS.minX + Math.random() * (GAME_BOUNDS.maxX - GAME_BOUNDS.minX),
+              y: GAME_BOUNDS.maxY + 2 + Math.random() * 2,
+              z: 0,
+            },
+            velocity: {
+              x: (Math.random() - 0.5) * 2,
+              y: -baseSpeed - Math.random() * 1,
+              z: 0,
+            },
+            health: enemyHealth,
+            maxHealth: enemyHealth,
+            size: enemySize,
+            isBlock: false,
+            isBoss: false,
+            isShiny,
+            isElite,
+            attackPattern: pattern,
+            lastFireTime: currentTime + Math.random() * 500,
+            fireRate,
+          };
+          newEnemies.push(newEnemy);
+        }
       }
       updates.enemies = [...state.enemies, ...newEnemies];
       updates.lastSpawnTime = currentTime;
-      updates.enemyIdCounter = (updates.enemyIdCounter || state.enemyIdCounter) + effectiveSpawnCount;
+      if (!isFormation) {
+        updates.enemyIdCounter = (updates.enemyIdCounter || state.enemyIdCounter) + effectiveSpawnCount;
+      }
     }
 
     // Spawn block with wallet token/NFT image
