@@ -21,10 +21,10 @@ const miniAppEmbed = {
 
 export const metadata: Metadata = {
   title: 'Crypto Shooting Game',
-  description: 'Shoot your wallet tokens and NFTs in this fun 3D shooting game!',
+  description: 'Shoot your wallet tokens and NFTs in this fun shooting game!',
   openGraph: {
     title: 'Crypto Shooting Game',
-    description: 'Shoot your wallet tokens and NFTs in this fun 3D shooting game!',
+    description: 'Shoot your wallet tokens and NFTs in this fun shooting game!',
     type: 'website',
     images: ['/og-image.png'],
   },

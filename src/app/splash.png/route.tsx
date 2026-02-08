@@ -16,8 +16,8 @@ export async function GET() {
           justifyContent: 'center',
         }}
       >
-        {/* Ship */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 30 }}>
+        {/* Ship only - no text */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           {/* Bullets */}
           <div style={{ display: 'flex', gap: 30, marginBottom: -15 }}>
             <div style={{ width: 12, height: 35, background: '#FFD93D', borderRadius: 6 }} />
@@ -39,28 +39,6 @@ export async function GET() {
             {/* Right wing */}
             <div style={{ width: 40, height: 70, background: '#54E6CB', borderRadius: 6, marginTop: 25 }} />
           </div>
-        </div>
-
-        {/* Title */}
-        <div
-          style={{
-            fontSize: 28,
-            fontWeight: 'bold',
-            color: '#FFD93D',
-            textAlign: 'center',
-            textShadow: '0 2px 10px rgba(0,0,0,0.5)',
-          }}
-        >
-          CRYPTO SHOOTING
-        </div>
-        <div
-          style={{
-            fontSize: 20,
-            color: '#6ECBFF',
-            marginTop: 5,
-          }}
-        >
-          GAME
         </div>
       </div>
     ),
