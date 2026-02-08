@@ -29,39 +29,18 @@ function PowerUpTimer({ expireTime, color, label }: { expireTime: number; color:
   const progress = remaining / POWER_UP_DURATION;
 
   return (
-    <div className="flex items-center gap-1">
-      <div className="relative w-8 h-8">
-        {/* Background circle */}
-        <svg className="w-8 h-8 -rotate-90">
-          <circle
-            cx="16"
-            cy="16"
-            r="12"
-            fill="none"
-            stroke="rgba(255,255,255,0.2)"
-            strokeWidth="3"
-          />
-          <circle
-            cx="16"
-            cy="16"
-            r="12"
-            fill="none"
-            stroke={color}
-            strokeWidth="3"
-            strokeDasharray={75.4}
-            strokeDashoffset={75.4 * (1 - progress)}
-            strokeLinecap="round"
-          />
+    <div className="flex items-center gap-0.5">
+      <div className="relative w-5 h-5">
+        <svg className="w-5 h-5 -rotate-90">
+          <circle cx="10" cy="10" r="8" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
+          <circle cx="10" cy="10" r="8" fill="none" stroke={color} strokeWidth="2"
+            strokeDasharray={50.3} strokeDashoffset={50.3 * (1 - progress)} strokeLinecap="round" />
         </svg>
-        {/* Inner timer number */}
-        <div
-          className="absolute inset-0 flex items-center justify-center text-xs font-bold"
-          style={{ color }}
-        >
+        <div className="absolute inset-0 flex items-center justify-center text-[8px] font-bold" style={{ color }}>
           {Math.ceil(remaining / 1000)}
         </div>
       </div>
-      <span className="text-white/70 text-xs">{label}</span>
+      <span className="text-white/80 text-[10px] font-bold">{label}</span>
     </div>
   );
 }
@@ -115,35 +94,19 @@ export function GameUI() {
               </div>
             )}
 
-            {/* Active power-ups with timers */}
-            <div className="flex flex-col gap-1">
+            {/* Active power-ups with timers - compact horizontal layout */}
+            <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
               {activePowerUps.rapidFire && (
-                <PowerUpTimer
-                  expireTime={powerUpExpireTimes?.rapidFire || 0}
-                  color={POWER_UP_COLORS.rapid_fire}
-                  label="Rapid"
-                />
+                <PowerUpTimer expireTime={powerUpExpireTimes?.rapidFire || 0} color={POWER_UP_COLORS.rapid_fire} label="Rapid" />
               )}
               {activePowerUps.shield && (
-                <PowerUpTimer
-                  expireTime={powerUpExpireTimes?.shield || 0}
-                  color={POWER_UP_COLORS.shield}
-                  label="Shield"
-                />
+                <PowerUpTimer expireTime={powerUpExpireTimes?.shield || 0} color={POWER_UP_COLORS.shield} label="Shield" />
               )}
               {activePowerUps.scoreBoost && (
-                <PowerUpTimer
-                  expireTime={powerUpExpireTimes?.scoreBoost || 0}
-                  color={POWER_UP_COLORS.score_boost}
-                  label="x2"
-                />
+                <PowerUpTimer expireTime={powerUpExpireTimes?.scoreBoost || 0} color={POWER_UP_COLORS.score_boost} label="x2" />
               )}
               {activePowerUps.tripleShot && (
-                <PowerUpTimer
-                  expireTime={powerUpExpireTimes?.tripleShot || 0}
-                  color={POWER_UP_COLORS.triple_shot}
-                  label="Triple"
-                />
+                <PowerUpTimer expireTime={powerUpExpireTimes?.tripleShot || 0} color={POWER_UP_COLORS.triple_shot} label="Triple" />
               )}
             </div>
           </div>
