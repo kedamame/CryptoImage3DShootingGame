@@ -187,27 +187,27 @@ export function GameUI() {
 
       {/* Power-up legend (bottom) */}
       {isPlaying && !isPaused && (
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="game-panel inline-flex gap-4 text-xs">
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.extra_ship }} />
-              <span className="text-white/70">+Ship</span>
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+          <div className="game-panel flex items-center justify-center gap-2 sm:gap-4 px-2 py-1 text-[10px] sm:text-xs whitespace-nowrap">
+            <div className="flex items-center gap-0.5">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.extra_ship }} />
+              <span className="text-white/80 font-bold">+Ship</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.rapid_fire }} />
-              <span className="text-white/70">Rapid</span>
+            <div className="flex items-center gap-0.5">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.rapid_fire }} />
+              <span className="text-white/80 font-bold">Rapid</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.shield }} />
-              <span className="text-white/70">Shield</span>
+            <div className="flex items-center gap-0.5">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.shield }} />
+              <span className="text-white/80 font-bold">Shield</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.score_boost }} />
-              <span className="text-white/70">x2</span>
+            <div className="flex items-center gap-0.5">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.score_boost }} />
+              <span className="text-white/80 font-bold">x2</span>
             </div>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.triple_shot }} />
-              <span className="text-white/70">Triple</span>
+            <div className="flex items-center gap-0.5">
+              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.triple_shot }} />
+              <span className="text-white/80 font-bold">Triple</span>
             </div>
           </div>
         </div>

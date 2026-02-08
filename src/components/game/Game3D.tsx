@@ -1592,9 +1592,18 @@ const GAME_BOUNDS = {
   maxY: 8,
 };
 
+// Calculate responsive camera zoom based on screen width
+// Game world is ~20 units wide (walls at -10 to 10), ensure it fits the screen
+function getResponsiveZoom(screenWidth: number, screenHeight: number): number {
+  const targetWorldWidth = 20; // Full game width including walls
+  const zoomForWidth = screenWidth / targetWorldWidth;
+  // Cap at 45 for large screens, minimum 15 for very small screens
+  return Math.max(15, Math.min(45, zoomForWidth));
+}
+
 // Game scene
 function GameScene() {
-  const { gl, camera, size } = useThree();
+  const { gl, size } = useThree();
   // Get render data from store (triggers re-render)
   const players = useGameStore((s) => s.players);
   const enemies = useGameStore((s) => s.enemies);
@@ -1611,6 +1620,18 @@ function GameScene() {
 
   const lastFireTime = useRef(0);
   const mousePos = useRef({ x: 0, y: 0 });
+  const cameraRef = useRef<THREE.OrthographicCamera>(null);
+
+  // Responsive zoom based on screen width
+  const cameraZoom = useMemo(() => getResponsiveZoom(size.width, size.height), [size.width, size.height]);
+
+  // Update camera zoom when it changes
+  useEffect(() => {
+    if (cameraRef.current) {
+      cameraRef.current.zoom = cameraZoom;
+      cameraRef.current.updateProjectionMatrix();
+    }
+  }, [cameraZoom]);
 
   // Game loop - always runs when playing
   useFrame((state, delta) => {
@@ -1642,14 +1663,16 @@ function GameScene() {
 
     // Camera settings for coordinate calculation
     const CAMERA_Y = 1.5; // Camera y position
-    const CAMERA_ZOOM = 45;
 
     const screenToGame = (clientX: number, clientY: number) => {
       const rect = canvas.getBoundingClientRect();
 
+      // Use responsive zoom for coordinate calculation
+      const currentZoom = cameraRef.current?.zoom || cameraZoom;
+
       // Calculate visible area based on orthographic camera
-      const visibleWidth = rect.width / CAMERA_ZOOM;
-      const visibleHeight = rect.height / CAMERA_ZOOM;
+      const visibleWidth = rect.width / currentZoom;
+      const visibleHeight = rect.height / currentZoom;
 
       // Normalize cursor position (0 to 1)
       const normalizedX = (clientX - rect.left) / rect.width;
@@ -1699,15 +1722,16 @@ function GameScene() {
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
-  }, [gl]);
+  }, [gl, cameraZoom]);
 
   return (
     <>
-      {/* Orthographic camera - no rotation to keep cursor alignment accurate */}
+      {/* Orthographic camera - responsive zoom for mobile/mini app */}
       <OrthographicCamera
+        ref={cameraRef}
         makeDefault
         position={[0, 1.5, 20]}
-        zoom={45}
+        zoom={cameraZoom}
         near={0.1}
         far={100}
       />
