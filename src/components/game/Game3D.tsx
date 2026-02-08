@@ -81,6 +81,9 @@ function VoxelBox({
 const mainShipPositionRef = { current: { x: 0, y: -3 } };
 
 // Player ship (Unrailed voxel style - stacked cubes like a character)
+// Rainbow color cycle for shield effect
+const RAINBOW_COLORS = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#8B00FF'];
+
 function PlayerShip({
   position,
   isMain,
@@ -96,6 +99,9 @@ function PlayerShip({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
+  const rainbowGlowRef = useRef<THREE.Mesh>(null);
+  const hitboxCoreRef = useRef<THREE.Mesh>(null);
+  const hitboxRingRef = useRef<THREE.Mesh>(null);
   const mainColor = isMain ? '#6ECBFF' : '#FF9FF3';
   const accentColor = isMain ? '#54E6CB' : '#A66CFF';
   const darkColor = isMain ? '#4AA8D8' : '#D080D0';
@@ -103,14 +109,11 @@ function PlayerShip({
   useFrame((state) => {
     if (groupRef.current) {
       if (isMain) {
-        // Main ship always reads from ref for lag-free movement
         groupRef.current.position.x = mainShipPositionRef.current.x;
         groupRef.current.position.y = mainShipPositionRef.current.y;
       }
-      // Bobbing animation like Unrailed characters
       groupRef.current.position.z = Math.sin(state.clock.elapsedTime * 4) * 0.03;
 
-      // Blinking effect when invincible (fast blink at 10Hz)
       if (isInvincible && isMain) {
         const blinkOn = Math.floor(state.clock.elapsedTime * 10) % 2 === 0;
         groupRef.current.visible = blinkOn;
@@ -118,14 +121,42 @@ function PlayerShip({
         groupRef.current.visible = true;
       }
     }
+    // Shield rainbow glow animation
+    if (rainbowGlowRef.current && hasShield) {
+      const t = state.clock.elapsedTime * 3;
+      const idx = Math.floor(t) % RAINBOW_COLORS.length;
+      const nextIdx = (idx + 1) % RAINBOW_COLORS.length;
+      const frac = t - Math.floor(t);
+      const c1 = new THREE.Color(RAINBOW_COLORS[idx]);
+      const c2 = new THREE.Color(RAINBOW_COLORS[nextIdx]);
+      c1.lerp(c2, frac);
+      (rainbowGlowRef.current.material as THREE.MeshBasicMaterial).color = c1;
+    }
     if (shieldRef.current && hasShield) {
+      const t = state.clock.elapsedTime * 3;
+      const idx = Math.floor(t) % RAINBOW_COLORS.length;
+      const nextIdx = (idx + 1) % RAINBOW_COLORS.length;
+      const frac = t - Math.floor(t);
+      const c1 = new THREE.Color(RAINBOW_COLORS[idx]);
+      const c2 = new THREE.Color(RAINBOW_COLORS[nextIdx]);
+      c1.lerp(c2, frac);
+      (shieldRef.current.material as THREE.MeshBasicMaterial).color = c1;
       shieldRef.current.rotation.y += 0.02;
+    }
+    // Pulsing hitbox core
+    if (hitboxCoreRef.current && isMain) {
+      const pulse = 0.7 + Math.sin(state.clock.elapsedTime * 8) * 0.3;
+      (hitboxCoreRef.current.material as THREE.MeshBasicMaterial).opacity = pulse;
+    }
+    if (hitboxRingRef.current && isMain) {
+      const pulse = 0.5 + Math.sin(state.clock.elapsedTime * 6) * 0.3;
+      (hitboxRingRef.current.material as THREE.MeshBasicMaterial).opacity = pulse;
     }
   });
 
   return (
     <group ref={groupRef} position={isMain ? [mainShipPositionRef.current.x, mainShipPositionRef.current.y, 0] : position}>
-      {/* Voxel ship body - stacked blocks like Unrailed */}
+      {/* Voxel ship body */}
       {/* Base layer (bottom) */}
       <mesh position={[0, -0.15, 0]}>
         <boxGeometry args={[0.5, 0.15, 0.3]} />
@@ -146,7 +177,7 @@ function PlayerShip({
         <boxGeometry args={[0.15, 0.1, 0.15]} />
         <meshBasicMaterial color={accentColor} />
       </mesh>
-      {/* Left wing (3 stacked voxels) */}
+      {/* Left wing */}
       <mesh position={[-0.3, 0, 0]}>
         <boxGeometry args={[0.15, 0.15, 0.2]} />
         <meshBasicMaterial color={accentColor} />
@@ -155,7 +186,7 @@ function PlayerShip({
         <boxGeometry args={[0.1, 0.1, 0.15]} />
         <meshBasicMaterial color={mainColor} />
       </mesh>
-      {/* Right wing (3 stacked voxels) */}
+      {/* Right wing */}
       <mesh position={[0.3, 0, 0]}>
         <boxGeometry args={[0.15, 0.15, 0.2]} />
         <meshBasicMaterial color={accentColor} />
@@ -169,32 +200,42 @@ function PlayerShip({
         <boxGeometry args={[0.2, 0.1, 0.15]} />
         <meshBasicMaterial color="#FF8C42" />
       </mesh>
-      {/* Hitbox indicator - glowing core (damage area) - very small for precise dodging */}
+
+      {/* Hitbox indicator - bright red pulsing core */}
       {isMain && (
         <>
-          {/* Inner core - bright center (actual hitbox) */}
-          <mesh position={[0, 0, 0.2]}>
-            <boxGeometry args={[0.1, 0.1, 0.1]} />
-            <meshBasicMaterial color="#FFFFFF" />
+          {/* Inner core - bright red pulsing center (actual hitbox) */}
+          <mesh ref={hitboxCoreRef} position={[0, 0, 0.2]}>
+            <boxGeometry args={[0.12, 0.12, 0.12]} />
+            <meshBasicMaterial color="#FF0000" transparent opacity={0.9} />
           </mesh>
-          {/* Outer ring - pulsing hitbox area */}
-          <mesh position={[0, 0, 0.15]}>
-            <ringGeometry args={[0.1, 0.15, 8]} />
-            <meshBasicMaterial color="#FF6B6B" transparent opacity={0.7} side={2} />
+          {/* Outer ring - red pulsing hitbox area */}
+          <mesh ref={hitboxRingRef} position={[0, 0, 0.15]}>
+            <ringGeometry args={[0.1, 0.18, 8]} />
+            <meshBasicMaterial color="#FF0000" transparent opacity={0.6} side={2} />
           </mesh>
-          {/* Hitbox boundary indicator */}
+          {/* Hitbox boundary - red border */}
           <lineSegments position={[0, 0, 0.1]}>
-            <edgesGeometry args={[new THREE.CircleGeometry(0.15, 8)]} />
-            <lineBasicMaterial color="#FF6B6B" transparent opacity={0.5} />
+            <edgesGeometry args={[new THREE.CircleGeometry(0.18, 8)]} />
+            <lineBasicMaterial color="#FF3333" transparent opacity={0.7} />
           </lineSegments>
         </>
       )}
-      {/* Shield effect - cubic style */}
+
+      {/* Shield effect - rainbow glow overlay on ship body */}
       {hasShield && (
-        <mesh ref={shieldRef}>
-          <boxGeometry args={[0.9, 0.7, 0.5]} />
-          <meshBasicMaterial color="#6ECBFF" transparent opacity={0.25} wireframe />
-        </mesh>
+        <>
+          {/* Rainbow glow around ship body */}
+          <mesh ref={rainbowGlowRef} position={[0, 0, 0.05]}>
+            <boxGeometry args={[0.55, 0.4, 0.35]} />
+            <meshBasicMaterial color="#FF0000" transparent opacity={0.3} />
+          </mesh>
+          {/* Rainbow wireframe shield */}
+          <mesh ref={shieldRef}>
+            <boxGeometry args={[0.9, 0.7, 0.5]} />
+            <meshBasicMaterial color="#FF0000" transparent opacity={0.3} wireframe />
+          </mesh>
+        </>
       )}
     </group>
   );
