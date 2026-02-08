@@ -765,8 +765,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const playerPos = mainPlayer ? mainPlayer.position : { x: 0, y: -3, z: 0 };
 
     // Update coins - drop phase then fly to player
-    const COIN_DROP_DURATION = 500; // ms in drop phase
-    const COIN_FLY_SPEED = 15; // Speed when flying to player
+    const COIN_DROP_DURATION = isFeverActive ? 300 : 500; // Shorter drop during fever
+    const COIN_FLY_SPEED = isFeverActive ? 25 : 15; // Faster fly during fever to clear coins quickly
     const COIN_COLLECT_DISTANCE = 0.8; // Distance at which coins are collected
 
     let coinScoreIncrease = 0;
@@ -1417,10 +1417,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     enemies = enemies.filter((enemy) => {
       if (destroyedEnemyIds.has(enemy.id)) {
-        // Spawn regular coins based on enemy type (more during fever)
+        // Spawn regular coins based on enemy type (capped during fever for performance)
         const baseCoinCount = enemy.isBoss ? 15 : (enemy.isBlock ? 2 : 5);
-        const coinCount = isFeverActive ? baseCoinCount * 2 : baseCoinCount; // 2x coins during fever
-        for (let i = 0; i < coinCount; i++) {
+        const coinCount = isFeverActive ? Math.min(baseCoinCount, 3) : baseCoinCount; // Fewer coins during fever to reduce lag
+        // Cap total coins for performance
+        const MAX_COINS = 50;
+        const coinsToSpawn = Math.min(coinCount, MAX_COINS - coins.length);
+        for (let i = 0; i < coinsToSpawn; i++) {
           const angle = (Math.PI * 2 * i) / coinCount + (Math.random() - 0.5) * 0.5;
           const speed = 2 + Math.random() * 3;
           coins.push({

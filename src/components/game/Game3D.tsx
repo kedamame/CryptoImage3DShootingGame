@@ -1281,59 +1281,54 @@ const PowerUpItem = memo(function PowerUpItem({
   );
 });
 
-// Coin component - 3D voxel coin that drops and flies to score
-const CoinMesh = memo(function CoinMesh({
-  position,
-  size,
-  phase
+// Instanced coin renderer - renders ALL coins in a single draw call
+const MAX_COINS_RENDERED = 60;
+const coinDummyObject = new THREE.Object3D();
+const coinGeometry = new THREE.BoxGeometry(1, 1, 0.3);
+const coinMaterial = new THREE.MeshBasicMaterial({ color: '#FFD700' });
+
+const InstancedCoinRenderer = memo(function InstancedCoinRenderer({
+  coins,
+  isFeverTime,
 }: {
-  position: [number, number, number];
-  size: number;
-  phase: 'drop' | 'fly';
+  coins: Coin[];
+  isFeverTime: boolean;
 }) {
-  const groupRef = useRef<THREE.Group>(null);
-  const scale = phase === 'fly' ? 0.7 : 1; // Coins shrink as they fly to score
+  const meshRef = useRef<THREE.InstancedMesh>(null);
 
   useFrame((state) => {
-    if (groupRef.current) {
-      // Spin animation
-      groupRef.current.rotation.y += 0.15;
-      // Wobble during drop phase
-      if (phase === 'drop') {
-        groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 10) * 0.3;
-      }
+    if (!meshRef.current) return;
+    const visibleCount = Math.min(coins.length, MAX_COINS_RENDERED);
+    const globalRotY = state.clock.elapsedTime * 5;
+    const wobbleX = Math.sin(state.clock.elapsedTime * 10) * 0.3;
+
+    for (let i = 0; i < visibleCount; i++) {
+      const coin = coins[i];
+      const scale = (coin.phase === 'fly' ? 0.7 : 1) * (isFeverTime ? coin.size * 1.5 : coin.size) * 2;
+      coinDummyObject.position.set(coin.position.x, coin.position.y, coin.position.z);
+      coinDummyObject.rotation.set(
+        coin.phase === 'drop' ? wobbleX : 0,
+        globalRotY + i * 0.5,
+        0
+      );
+      coinDummyObject.scale.set(scale, scale, scale);
+      coinDummyObject.updateMatrix();
+      meshRef.current.setMatrixAt(i, coinDummyObject.matrix);
     }
+    meshRef.current.count = visibleCount;
+    meshRef.current.instanceMatrix.needsUpdate = true;
   });
 
-  const coinSize = size * scale;
-
   return (
-    <group ref={groupRef} position={position}>
-      {/* Main coin body (cylinder-like stack of boxes) */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[coinSize * 2, coinSize * 2, coinSize * 0.4]} />
-        <meshBasicMaterial color="#FFD700" />
-      </mesh>
-      {/* Coin edge highlight */}
-      <mesh position={[0, 0, coinSize * 0.15]}>
-        <boxGeometry args={[coinSize * 1.6, coinSize * 1.6, coinSize * 0.15]} />
-        <meshBasicMaterial color="#FFF8DC" />
-      </mesh>
-      {/* Coin center detail */}
-      <mesh position={[0, 0, coinSize * 0.22]}>
-        <boxGeometry args={[coinSize * 0.8, coinSize * 0.8, coinSize * 0.1]} />
-        <meshBasicMaterial color="#DAA520" />
-      </mesh>
-      {/* Back of coin */}
-      <mesh position={[0, 0, -coinSize * 0.15]}>
-        <boxGeometry args={[coinSize * 1.6, coinSize * 1.6, coinSize * 0.15]} />
-        <meshBasicMaterial color="#B8860B" />
-      </mesh>
-    </group>
+    <instancedMesh
+      ref={meshRef}
+      args={[coinGeometry, coinMaterial, MAX_COINS_RENDERED]}
+      frustumCulled={false}
+    />
   );
 });
 
-// Large Fever Coin - collect 5 to trigger Fever Time (classic gold coin design)
+// Large Fever Coin - collect 5 to trigger Fever Time (simplified for performance)
 const FeverCoinMesh = memo(function FeverCoinMesh({
   position,
   phase
@@ -1342,16 +1337,13 @@ const FeverCoinMesh = memo(function FeverCoinMesh({
   phase: 'drop' | 'fly';
 }) {
   const groupRef = useRef<THREE.Group>(null);
-  const coinSize = 0.5; // Large coin
+  const coinSize = 0.5;
 
   useFrame((state) => {
     if (groupRef.current) {
-      // Smooth spin
       groupRef.current.rotation.y += 0.15;
-      // Gentle pulsing glow effect
       const pulse = 1 + Math.sin(state.clock.elapsedTime * 5) * 0.08;
       groupRef.current.scale.setScalar(pulse);
-      // Gentle wobble in drop phase
       if (phase === 'drop') {
         groupRef.current.rotation.x = Math.sin(state.clock.elapsedTime * 4) * 0.2;
       }
@@ -1360,77 +1352,30 @@ const FeverCoinMesh = memo(function FeverCoinMesh({
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Outer golden glow */}
-      <mesh position={[0, 0, 0]}>
+      {/* Outer glow */}
+      <mesh>
         <boxGeometry args={[coinSize * 2.8, coinSize * 2.8, coinSize * 0.2]} />
         <meshBasicMaterial color="#FFD700" transparent opacity={0.25} />
       </mesh>
-      {/* Main coin body - thick gold disk */}
-      <mesh position={[0, 0, 0]}>
+      {/* Main coin body */}
+      <mesh>
         <boxGeometry args={[coinSize * 2.2, coinSize * 2.2, coinSize * 0.35]} />
         <meshBasicMaterial color="#FFD700" />
       </mesh>
-      {/* Coin front face - lighter gold */}
+      {/* Front face */}
       <mesh position={[0, 0, coinSize * 0.18]}>
-        <boxGeometry args={[coinSize * 1.9, coinSize * 1.9, coinSize * 0.05]} />
+        <boxGeometry args={[coinSize * 1.6, coinSize * 1.6, coinSize * 0.05]} />
         <meshBasicMaterial color="#FFEC8B" />
       </mesh>
-      {/* Inner ring detail */}
-      <mesh position={[0, 0, coinSize * 0.21]}>
-        <boxGeometry args={[coinSize * 1.5, coinSize * 1.5, coinSize * 0.03]} />
-        <meshBasicMaterial color="#DAA520" />
-      </mesh>
-      {/* Center emblem - $ symbol voxel style */}
-      {/* Vertical bar of $ */}
-      <mesh position={[0, 0, coinSize * 0.24]}>
+      {/* $ vertical bar */}
+      <mesh position={[0, 0, coinSize * 0.22]}>
         <boxGeometry args={[coinSize * 0.15, coinSize * 0.9, coinSize * 0.04]} />
         <meshBasicMaterial color="#B8860B" />
       </mesh>
-      {/* Top curve of S */}
-      <mesh position={[0, coinSize * 0.25, coinSize * 0.24]}>
-        <boxGeometry args={[coinSize * 0.5, coinSize * 0.15, coinSize * 0.04]} />
-        <meshBasicMaterial color="#B8860B" />
-      </mesh>
-      {/* Middle bar of S */}
-      <mesh position={[0, 0, coinSize * 0.24]}>
-        <boxGeometry args={[coinSize * 0.45, coinSize * 0.12, coinSize * 0.04]} />
-        <meshBasicMaterial color="#B8860B" />
-      </mesh>
-      {/* Bottom curve of S */}
-      <mesh position={[0, -coinSize * 0.25, coinSize * 0.24]}>
-        <boxGeometry args={[coinSize * 0.5, coinSize * 0.15, coinSize * 0.04]} />
-        <meshBasicMaterial color="#B8860B" />
-      </mesh>
-      {/* Coin back - darker gold */}
+      {/* Back */}
       <mesh position={[0, 0, -coinSize * 0.18]}>
-        <boxGeometry args={[coinSize * 1.9, coinSize * 1.9, coinSize * 0.05]} />
+        <boxGeometry args={[coinSize * 1.6, coinSize * 1.6, coinSize * 0.05]} />
         <meshBasicMaterial color="#B8860B" />
-      </mesh>
-      {/* Edge rims - gives coin 3D depth (voxel style) */}
-      <mesh position={[coinSize * 1.0, 0, 0]}>
-        <boxGeometry args={[coinSize * 0.12, coinSize * 1.8, coinSize * 0.3]} />
-        <meshBasicMaterial color="#DAA520" />
-      </mesh>
-      <mesh position={[-coinSize * 1.0, 0, 0]}>
-        <boxGeometry args={[coinSize * 0.12, coinSize * 1.8, coinSize * 0.3]} />
-        <meshBasicMaterial color="#DAA520" />
-      </mesh>
-      <mesh position={[0, coinSize * 1.0, 0]}>
-        <boxGeometry args={[coinSize * 1.8, coinSize * 0.12, coinSize * 0.3]} />
-        <meshBasicMaterial color="#DAA520" />
-      </mesh>
-      <mesh position={[0, -coinSize * 1.0, 0]}>
-        <boxGeometry args={[coinSize * 1.8, coinSize * 0.12, coinSize * 0.3]} />
-        <meshBasicMaterial color="#DAA520" />
-      </mesh>
-      {/* Subtle sparkle particles */}
-      <mesh position={[coinSize * 1.2, coinSize * 0.6, 0.2]}>
-        <boxGeometry args={[0.1, 0.1, 0.1]} />
-        <meshBasicMaterial color="#FFFFFF" />
-      </mesh>
-      <mesh position={[-coinSize * 1.1, -coinSize * 0.5, 0.15]}>
-        <boxGeometry args={[0.08, 0.08, 0.08]} />
-        <meshBasicMaterial color="#FFFACD" />
       </mesh>
     </group>
   );
@@ -1910,15 +1855,8 @@ function GameScene() {
         />
       ))}
 
-      {/* Coins - larger and more dramatic during fever time */}
-      {coins.map((coin) => (
-        <CoinMesh
-          key={coin.id}
-          position={[coin.position.x, coin.position.y, coin.position.z]}
-          size={isFeverTime ? coin.size * 1.5 : coin.size}
-          phase={coin.phase}
-        />
-      ))}
+      {/* Coins - rendered with InstancedMesh for performance */}
+      <InstancedCoinRenderer coins={coins} isFeverTime={isFeverTime} />
 
       {/* Fever Coins (large golden coins) */}
       {feverCoins.map((fc) => (
@@ -1962,7 +1900,7 @@ function GameScene() {
             <mesh position={[1.85, -0.2, 0]} rotation={[0, 0, -0.4]}><boxGeometry args={[0.25, 0.55, 0.2]} /><meshBasicMaterial color="#FFD700" /></mesh>
           </group>
           {/* Rainbow particle effects during fever */}
-          {Array.from({ length: 20 }).map((_, i) => (
+          {Array.from({ length: 8 }).map((_, i) => (
             <mesh
               key={`fever-particle-${i}`}
               position={[
