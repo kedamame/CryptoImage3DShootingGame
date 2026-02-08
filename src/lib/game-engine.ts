@@ -9,6 +9,23 @@ const GAME_BOUNDS = {
   maxY: 8,
 };
 
+// Check if a point (px, py) is inside an enemy's hitbox
+function pointInEnemyHitbox(px: number, py: number, enemy: Enemy): boolean {
+  if (enemy.hitbox) {
+    // AABB collision for bosses - matches visual shape
+    return (
+      px >= enemy.position.x - enemy.hitbox.halfW &&
+      px <= enemy.position.x + enemy.hitbox.halfW &&
+      py >= enemy.position.y - enemy.hitbox.bottom &&
+      py <= enemy.position.y + enemy.hitbox.top
+    );
+  }
+  // Circle collision for regular enemies
+  const dx = px - enemy.position.x;
+  const dy = py - enemy.position.y;
+  return Math.sqrt(dx * dx + dy * dy) < enemy.size;
+}
+
 const SPAWN_RATE_INITIAL = 3500; // ms between enemy spawns (slower at start)
 const SPAWN_RATE_MIN = 800; // fastest spawn rate
 const SPAWN_COUNT_INITIAL = 1; // Start with 1 enemy
@@ -403,16 +420,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   spawnBoss: () => {
     set((state) => {
-      // Define boss configurations: [pattern, bossType, fireRate, size]
-      const bossConfigs: { pattern: EnemyAttackPattern; bossType: BossType; fireRate: number; size: number }[] = [
-        { pattern: 'spiral', bossType: 'demon', fireRate: 250, size: 2.5 },     // Demon: rotating 6-way shots (slower fire)
-        { pattern: 'barrage', bossType: 'mech', fireRate: 400, size: 2.8 },     // Mech: heavy downward barrage (slower fire)
-        { pattern: 'laser', bossType: 'dragon', fireRate: 200, size: 2.6 },     // Dragon: sweeping laser (slower fire)
-        { pattern: 'ring', bossType: 'golem', fireRate: 500, size: 3.0 },       // Golem: expanding rings (slower fire)
-        { pattern: 'homing', bossType: 'phantom', fireRate: 600, size: 2.4 },   // Phantom: homing missiles (slower fire)
-        { pattern: 'burst', bossType: 'sprite', fireRate: 350, size: 1.5 },     // Sprite: small, fast, agile (slower fire)
-        { pattern: 'hydra', bossType: 'hydra', fireRate: 300, size: 2.7 },      // Hydra: multi-head alternating shots
-        { pattern: 'kraken', bossType: 'kraken', fireRate: 350, size: 3.2 },    // Kraken: wave-like tentacle sweeps
+      // Define boss configurations with AABB hitboxes matching visual shapes
+      // hitbox: halfW = half-width, top/bottom = Y extent relative to center (s = size * 0.8)
+      const bossConfigs: { pattern: EnemyAttackPattern; bossType: BossType; fireRate: number; size: number; hitbox: { halfW: number; top: number; bottom: number } }[] = [
+        { pattern: 'spiral', bossType: 'demon', fireRate: 250, size: 2.5, hitbox: { halfW: 1.8 * 2.5 * 0.8, top: 2.0 * 2.5 * 0.8, bottom: 0.75 * 2.5 * 0.8 } },
+        { pattern: 'barrage', bossType: 'mech', fireRate: 400, size: 2.8, hitbox: { halfW: 1.7 * 2.8 * 0.8, top: 1.5 * 2.8 * 0.8, bottom: 0.8 * 2.8 * 0.8 } },
+        { pattern: 'laser', bossType: 'dragon', fireRate: 200, size: 2.6, hitbox: { halfW: 2.0 * 2.6 * 0.8, top: 1.7 * 2.6 * 0.8, bottom: 0.6 * 2.6 * 0.8 } },
+        { pattern: 'ring', bossType: 'golem', fireRate: 500, size: 3.0, hitbox: { halfW: 2.0 * 3.0 * 0.8, top: 2.0 * 3.0 * 0.8, bottom: 1.3 * 3.0 * 0.8 } },
+        { pattern: 'homing', bossType: 'phantom', fireRate: 600, size: 2.4, hitbox: { halfW: 1.55 * 2.4 * 0.8, top: 1.8 * 2.4 * 0.8, bottom: 1.3 * 2.4 * 0.8 } },
+        { pattern: 'burst', bossType: 'sprite', fireRate: 350, size: 1.5, hitbox: { halfW: 0.95 * 1.5 * 0.8, top: 1.2 * 1.5 * 0.8, bottom: 0.8 * 1.5 * 0.8 } },
+        { pattern: 'hydra', bossType: 'hydra', fireRate: 300, size: 2.7, hitbox: { halfW: 1.1 * 2.7 * 0.8, top: 1.8 * 2.7 * 0.8, bottom: 0.7 * 2.7 * 0.8 } },
+        { pattern: 'kraken', bossType: 'kraken', fireRate: 350, size: 3.2, hitbox: { halfW: 1.25 * 3.2 * 0.8, top: 1.7 * 3.2 * 0.8, bottom: 1.25 * 3.2 * 0.8 } },
       ];
 
       const config = bossConfigs[state.bossesDefeated % bossConfigs.length];
@@ -432,6 +450,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         isShiny: false,
         isElite: false,
         bossType: config.bossType,
+        hitbox: config.hitbox,
         attackPattern: config.pattern,
         lastFireTime: 0,
         fireRate: config.fireRate,
@@ -1384,11 +1403,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       if (bullet.position.y > GAME_BOUNDS.maxY + 1) return false; // Remove at top wall
 
       for (const enemy of enemies) {
-        const dx = bullet.position.x - enemy.position.x;
-        const dy = bullet.position.y - enemy.position.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < enemy.size) {
+        if (pointInEnemyHitbox(bullet.position.x, bullet.position.y, enemy)) {
           enemy.health -= 1;
           if (enemy.health <= 0) {
             destroyedEnemyIds.add(enemy.id);
@@ -1606,12 +1621,24 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     // Player collision with enemies
     if (mainPlayer) {
+      const playerRadius = 0.15; // Very small hitbox for precise dodging
       for (const enemy of enemies) {
-        const dx = mainPlayer.position.x - enemy.position.x;
-        const dy = mainPlayer.position.y - enemy.position.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        // Very small hitbox for player (0.15 for precise dodging)
-        if (dist < enemy.size + 0.15) {
+        let hit = false;
+        if (enemy.hitbox) {
+          // AABB collision with player radius margin
+          hit = (
+            mainPlayer.position.x + playerRadius >= enemy.position.x - enemy.hitbox.halfW &&
+            mainPlayer.position.x - playerRadius <= enemy.position.x + enemy.hitbox.halfW &&
+            mainPlayer.position.y + playerRadius >= enemy.position.y - enemy.hitbox.bottom &&
+            mainPlayer.position.y - playerRadius <= enemy.position.y + enemy.hitbox.top
+          );
+        } else {
+          const dx = mainPlayer.position.x - enemy.position.x;
+          const dy = mainPlayer.position.y - enemy.position.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          hit = dist < enemy.size + playerRadius;
+        }
+        if (hit) {
           if (enemy.isBoss) {
             // Boss collision: always take damage (shield doesn't protect against boss body)
             get().takeDamageForceBoss();

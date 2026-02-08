@@ -40,6 +40,7 @@ export interface Enemy {
   isShiny: boolean; // Rare shiny enemy (0.1% chance, more HP, drops 5 items)
   isElite: boolean; // Elite enemy (20% chance, 2x HP, 50% drop rate)
   bossType?: BossType; // Visual type for boss enemies
+  hitbox?: { halfW: number; top: number; bottom: number }; // AABB hitbox for bosses (relative to position)
   attackPattern: EnemyAttackPattern;
   lastFireTime: number; // For enemy shooting cooldown
   fireRate: number;     // ms between shots
