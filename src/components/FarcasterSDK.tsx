@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef, type ReactNode, createContext, useContext } from 'react';
-import { sdk } from '@farcaster/miniapp-sdk';
 
 interface FarcasterUser {
   fid: number;
@@ -34,60 +33,59 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
   const [provider, setProvider] = useState<any>(null);
   const initialized = useRef(false);
 
+  // Dynamically import SDK inside useEffect to avoid SSR issues
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
 
-    const initSDK = async () => {
-      try {
-        // First, call ready() to dismiss the splash screen
-        await sdk.actions.ready();
-        console.log('Farcaster SDK ready() called');
-      } catch (error) {
-        console.error('Failed to call ready():', error);
-      }
+    import('@farcaster/miniapp-sdk').then(({ sdk }) => {
+      // Call ready() immediately to dismiss splash screen
+      sdk.actions.ready();
+      console.log('Farcaster SDK ready() called');
 
-      try {
-        // Check if we're in a mini app
-        const isMiniApp = await sdk.isInMiniApp();
+      // Then load context asynchronously
+      sdk.isInMiniApp().then(async (isMiniApp) => {
         setIsInMiniApp(isMiniApp);
         console.log('Is in Mini App:', isMiniApp);
 
         if (isMiniApp) {
-          // Get context and user data
-          const context = await sdk.context;
-          console.log('Farcaster context:', context);
-
-          if (context?.user) {
-            const userData = context.user as any;
-            setUser({
-              fid: userData.fid,
-              username: userData.username,
-              displayName: userData.displayName,
-              pfpUrl: userData.pfpUrl,
-              custodyAddress: userData.custodyAddress,
-            });
-          }
-
-          // Get wallet provider without overriding window.ethereum
           try {
-            const ethProvider = await sdk.wallet.getEthereumProvider();
-            if (ethProvider) {
-              setProvider(ethProvider);
-              console.log('Farcaster wallet provider obtained');
+            const context = await sdk.context;
+            console.log('Farcaster context:', context);
+
+            if (context?.user) {
+              const userData = context.user as any;
+              setUser({
+                fid: userData.fid,
+                username: userData.username,
+                displayName: userData.displayName,
+                pfpUrl: userData.pfpUrl,
+                custodyAddress: userData.custodyAddress,
+              });
             }
-          } catch (e) {
-            console.log('Wallet provider not available:', e);
+
+            try {
+              const ethProvider = await sdk.wallet.getEthereumProvider();
+              if (ethProvider) {
+                setProvider(ethProvider);
+              }
+            } catch (e) {
+              console.log('Wallet provider not available:', e);
+            }
+          } catch (error) {
+            console.error('Farcaster SDK context error:', error);
           }
         }
-      } catch (error) {
-        console.error('Farcaster SDK context error:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
 
-    initSDK();
+        setIsLoading(false);
+      }).catch((error) => {
+        console.error('Farcaster isInMiniApp error:', error);
+        setIsLoading(false);
+      });
+    }).catch((error) => {
+      console.error('Failed to load Farcaster SDK:', error);
+      setIsLoading(false);
+    });
   }, []);
 
   return (

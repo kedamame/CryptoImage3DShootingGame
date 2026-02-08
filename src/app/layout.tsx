@@ -2,31 +2,31 @@ import type { Metadata, Viewport } from 'next';
 import { AppProvider } from '@/components/providers/AppProvider';
 import './globals.css';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crypto-shooting.vercel.app';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://crypto-image3-d-shooting-game.vercel.app';
 
 const miniAppEmbed = {
   version: '1',
-  imageUrl: `${APP_URL}/og-image.svg`,
+  imageUrl: `${APP_URL}/og-image.png`,
   button: {
     title: 'Play Now!',
     action: {
-      type: 'launch_miniapp',
-      name: 'CryptoImageShootingGame',
+      type: 'launch_frame',
+      name: 'Crypto Shooting Game',
       url: APP_URL,
-      splashImageUrl: `${APP_URL}/splash.svg`,
+      splashImageUrl: `${APP_URL}/splash.png`,
       splashBackgroundColor: '#1a1a2e',
     },
   },
 };
 
 export const metadata: Metadata = {
-  title: 'CryptoImageShootingGame',
+  title: 'Crypto Shooting Game',
   description: 'Shoot your wallet tokens and NFTs in this fun 3D shooting game!',
   openGraph: {
-    title: 'CryptoImageShootingGame',
+    title: 'Crypto Shooting Game',
     description: 'Shoot your wallet tokens and NFTs in this fun 3D shooting game!',
     type: 'website',
-    images: ['/og-image.svg'],
+    images: ['/og-image.png'],
   },
   other: {
     'fc:miniapp': JSON.stringify(miniAppEmbed),
