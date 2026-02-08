@@ -399,15 +399,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Leaderboard button (when playing) */}
-      {isPlaying && !showLeaderboard && (
-        <button
-          onClick={() => setShowLeaderboard(true)}
-          className="absolute bottom-20 right-4 game-panel px-3 py-2 text-white text-xs pointer-events-auto"
-        >
-          🏆
-        </button>
-      )}
 
       {/* Connection status */}
       {isConnected && !isPlaying && (
