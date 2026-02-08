@@ -14,87 +14,79 @@ export default function OGImage() {
           width: '100%',
           height: '100%',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: 60,
+          justifyContent: 'center',
+          padding: 40,
         }}
       >
-        {/* Left side - Text */}
-        <div style={{ display: 'flex', flexDirection: 'column', maxWidth: 600 }}>
-          <div
-            style={{
-              fontSize: 72,
-              fontWeight: 'bold',
-              background: 'linear-gradient(90deg, #FFD93D, #FF8C42)',
-              backgroundClip: 'text',
-              color: 'transparent',
-              marginBottom: 20,
-            }}
-          >
-            CRYPTO
+        {/* Ship graphic above title */}
+        <div style={{ display: 'flex', alignItems: 'flex-end', marginBottom: 20 }}>
+          {/* Left wing */}
+          <div style={{ width: 35, height: 70, background: '#54E6CB', borderRadius: 8, marginTop: 25 }} />
+          {/* Main body */}
+          <div style={{ width: 80, height: 120, background: '#6ECBFF', borderRadius: 14, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 18 }}>
+            <div style={{ width: 45, height: 45, background: '#FFD93D', borderRadius: 8 }} />
           </div>
-          <div
-            style={{
-              fontSize: 72,
-              fontWeight: 'bold',
-              color: '#6ECBFF',
-              marginBottom: 30,
-            }}
-          >
-            SHOOTING GAME
-          </div>
-          <div
-            style={{
-              fontSize: 28,
-              color: '#A66CFF',
-              marginBottom: 40,
-            }}
-          >
-            Your tokens become targets!
-          </div>
-          <div
-            style={{
-              fontSize: 22,
-              color: '#FFFFFF',
-              opacity: 0.8,
-              lineHeight: 1.5,
-            }}
-          >
-            A 3D shooting game where your wallet tokens and NFTs become enemies.
-            Collect power-ups, defeat bosses, trigger Fever Time!
-          </div>
+          {/* Right wing */}
+          <div style={{ width: 35, height: 70, background: '#54E6CB', borderRadius: 8, marginTop: 25 }} />
         </div>
 
-        {/* Right side - Ship graphic */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          {/* Bullets */}
-          <div style={{ display: 'flex', gap: 40, marginBottom: -20 }}>
-            <div style={{ width: 20, height: 60, background: '#FFD93D', borderRadius: 10 }} />
-            <div style={{ width: 20, height: 80, background: '#FF8C42', borderRadius: 10, marginTop: -20 }} />
-            <div style={{ width: 20, height: 60, background: '#FFD93D', borderRadius: 10 }} />
-          </div>
+        {/* Title */}
+        <div
+          style={{
+            fontSize: 80,
+            fontWeight: 'bold',
+            background: 'linear-gradient(90deg, #FFD93D, #FF8C42)',
+            backgroundClip: 'text',
+            color: 'transparent',
+            lineHeight: 1,
+          }}
+        >
+          CRYPTO
+        </div>
+        <div
+          style={{
+            fontSize: 56,
+            fontWeight: 'bold',
+            color: '#6ECBFF',
+            marginBottom: 16,
+            lineHeight: 1.2,
+          }}
+        >
+          SHOOTING GAME
+        </div>
 
-          {/* Ship */}
-          <div style={{ display: 'flex', alignItems: 'flex-start' }}>
-            {/* Left wing */}
-            <div style={{ width: 60, height: 120, background: '#54E6CB', borderRadius: 10, marginTop: 40 }} />
+        {/* Subtitle */}
+        <div
+          style={{
+            fontSize: 28,
+            color: '#A66CFF',
+            marginBottom: 24,
+          }}
+        >
+          Your tokens become targets!
+        </div>
 
-            {/* Main body */}
-            <div style={{ width: 130, height: 200, background: '#6ECBFF', borderRadius: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 25 }}>
-              {/* Cockpit */}
-              <div style={{ width: 70, height: 70, background: '#FFD93D', borderRadius: 10 }} />
-            </div>
+        {/* Description */}
+        <div
+          style={{
+            fontSize: 20,
+            color: '#FFFFFF',
+            opacity: 0.7,
+            textAlign: 'center',
+            maxWidth: 700,
+          }}
+        >
+          A 3D shooting game where your wallet tokens and NFTs become enemies
+        </div>
 
-            {/* Right wing */}
-            <div style={{ width: 60, height: 120, background: '#54E6CB', borderRadius: 10, marginTop: 40 }} />
-          </div>
-
-          {/* Enemy blocks below */}
-          <div style={{ display: 'flex', gap: 20, marginTop: 30 }}>
-            <div style={{ width: 50, height: 50, background: '#FF6B6B', borderRadius: 8, opacity: 0.8 }} />
-            <div style={{ width: 60, height: 60, background: '#A66CFF', borderRadius: 8, opacity: 0.8 }} />
-            <div style={{ width: 45, height: 45, background: '#FF9FF3', borderRadius: 8, opacity: 0.8 }} />
-          </div>
+        {/* Enemy blocks at bottom */}
+        <div style={{ display: 'flex', gap: 16, marginTop: 28 }}>
+          <div style={{ width: 40, height: 40, background: '#FF6B6B', borderRadius: 6, opacity: 0.8 }} />
+          <div style={{ width: 48, height: 48, background: '#A66CFF', borderRadius: 6, opacity: 0.8 }} />
+          <div style={{ width: 36, height: 36, background: '#FF9FF3', borderRadius: 6, opacity: 0.8 }} />
+          <div style={{ width: 44, height: 44, background: '#54E6CB', borderRadius: 6, opacity: 0.8 }} />
         </div>
       </div>
     ),

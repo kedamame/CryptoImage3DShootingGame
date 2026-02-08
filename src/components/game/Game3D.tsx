@@ -99,6 +99,8 @@ function PlayerShip({
 }) {
   const groupRef = useRef<THREE.Group>(null);
   const shieldRef = useRef<THREE.Mesh>(null);
+  const shieldRef2 = useRef<THREE.Mesh>(null);
+  const shieldRef3 = useRef<THREE.Mesh>(null);
   const rainbowGlowRef = useRef<THREE.Mesh>(null);
   const hitboxCoreRef = useRef<THREE.Mesh>(null);
   const hitboxRingRef = useRef<THREE.Mesh>(null);
@@ -140,8 +142,16 @@ function PlayerShip({
       const c1 = new THREE.Color(RAINBOW_COLORS[idx]);
       const c2 = new THREE.Color(RAINBOW_COLORS[nextIdx]);
       c1.lerp(c2, frac);
-      (shieldRef.current.material as THREE.MeshBasicMaterial).color = c1;
+      (shieldRef.current.material as THREE.MeshBasicMaterial).color = c1.clone();
       shieldRef.current.rotation.y += 0.02;
+      if (shieldRef2.current) {
+        (shieldRef2.current.material as THREE.MeshBasicMaterial).color = c1.clone();
+        shieldRef2.current.rotation.y += 0.015;
+      }
+      if (shieldRef3.current) {
+        (shieldRef3.current.material as THREE.MeshBasicMaterial).color = c1.clone();
+        shieldRef3.current.rotation.y += 0.025;
+      }
     }
     // Pulsing hitbox core
     if (hitboxCoreRef.current && isMain) {
@@ -230,9 +240,17 @@ function PlayerShip({
             <boxGeometry args={[0.55, 0.4, 0.35]} />
             <meshBasicMaterial color="#FF0000" transparent opacity={0.3} />
           </mesh>
-          {/* Rainbow wireframe shield */}
+          {/* Rainbow wireframe shield - multiple layers for thicker lines */}
           <mesh ref={shieldRef}>
             <boxGeometry args={[0.9, 0.7, 0.5]} />
+            <meshBasicMaterial color="#FF0000" transparent opacity={0.4} wireframe />
+          </mesh>
+          <mesh ref={shieldRef2}>
+            <boxGeometry args={[0.92, 0.72, 0.52]} />
+            <meshBasicMaterial color="#FF0000" transparent opacity={0.3} wireframe />
+          </mesh>
+          <mesh ref={shieldRef3}>
+            <boxGeometry args={[0.88, 0.68, 0.48]} />
             <meshBasicMaterial color="#FF0000" transparent opacity={0.3} wireframe />
           </mesh>
         </>
