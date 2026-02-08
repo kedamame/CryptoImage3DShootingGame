@@ -1748,7 +1748,7 @@ function GameScene() {
 
     // Ship offset: higher for touch (finger obscures ship) vs mouse
     const SHIP_OFFSET_Y_MOUSE = 0.8;
-    const SHIP_OFFSET_Y_TOUCH = 2.5; // Much higher so ship is visible above finger
+    const SHIP_OFFSET_Y_TOUCH = 3.25; // Much higher so ship is visible above finger
 
     // Camera settings for coordinate calculation
     const CAMERA_Y = 1.5; // Camera y position
@@ -1792,6 +1792,9 @@ function GameScene() {
       if (e.touches.length > 0) {
         isTouchingRef.current = true;
         const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
+        // Direct position update during drag - no lag
+        mainShipPositionRef.current = pos;
+        mousePos.current = pos;
         shipTargetRef.current = pos;
       }
     };
