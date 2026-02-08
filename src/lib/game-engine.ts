@@ -57,6 +57,7 @@ interface GameStore extends GameState {
   fireBullet: () => void;
   collectPowerUp: (powerUpId: string) => void;
   takeDamage: () => void;
+  takeDamageForceBoss: () => void;
   spawnBoss: () => void;
 }
 
@@ -364,6 +365,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
         return { lives: 0, isPlaying: false, isGameOver: true, isInvincible: false, invincibleUntil: 0 };
       }
       // Set invincibility for 5 seconds after taking damage
+      return {
+        lives: newLives,
+        isInvincible: true,
+        invincibleUntil: Date.now() + INVINCIBILITY_DURATION,
+      };
+    });
+  },
+
+  // Boss body collision: ignores shield, consumes shield first, then takes life
+  takeDamageForceBoss: () => {
+    set((state) => {
+      // Invincibility and fever still protect
+      if (state.isInvincible || state.isFeverTime) return state;
+
+      // If shield is active, consume shield but don't lose a life
+      if (state.activePowerUps.shield) {
+        return {
+          activePowerUps: { ...state.activePowerUps, shield: false },
+          powerUpExpireTimes: { ...state.powerUpExpireTimes, shield: 0 },
+          isInvincible: true,
+          invincibleUntil: Date.now() + INVINCIBILITY_DURATION,
+        };
+      }
+
+      const newLives = state.lives - 1;
+      if (newLives <= 0) {
+        return { lives: 0, isPlaying: false, isGameOver: true, isInvincible: false, invincibleUntil: 0 };
+      }
       return {
         lives: newLives,
         isInvincible: true,
@@ -1516,8 +1545,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
         const dist = Math.sqrt(dx * dx + dy * dy);
         // Very small hitbox for player (0.15 for precise dodging)
         if (dist < enemy.size + 0.15) {
-          get().takeDamage();
-          enemies = enemies.filter((e) => e.id !== enemy.id);
+          if (enemy.isBoss) {
+            // Boss collision: always take damage (shield doesn't protect against boss body)
+            get().takeDamageForceBoss();
+            // Boss is NOT destroyed by player collision
+          } else {
+            get().takeDamage();
+            enemies = enemies.filter((e) => e.id !== enemy.id);
+          }
           break;
         }
       }
