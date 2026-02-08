@@ -68,6 +68,10 @@ export function FarcasterSDK({ children }: { children: ReactNode }) {
               const ethProvider = await sdk.wallet.getEthereumProvider();
               if (ethProvider) {
                 setProvider(ethProvider);
+                // Expose as window.ethereum so wagmi injected() connector can use it
+                if (typeof window !== 'undefined') {
+                  (window as any).ethereum = ethProvider;
+                }
               }
             } catch (e) {
               console.log('Wallet provider not available:', e);

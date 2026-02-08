@@ -1713,17 +1713,47 @@ function GameScene() {
     }
   });
 
+  // Target position for smooth movement (used for touch re-tap interpolation)
+  const shipTargetRef = useRef({ x: 0, y: -3 });
+  const isTouchingRef = useRef(false);
+  const isTouchInputRef = useRef(false); // Track if current input is touch
+
+  // Smooth ship movement interpolation in useFrame
+  useFrame(() => {
+    const store = useGameStore.getState();
+    if (!store.isPlaying || store.isPaused) return;
+
+    const target = shipTargetRef.current;
+    const current = mainShipPositionRef.current;
+    const dx = target.x - current.x;
+    const dy = target.y - current.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > 0.01) {
+      // Smooth movement: lerp speed depends on whether touching (dragging) or re-tapping
+      const lerpSpeed = isTouchingRef.current ? 0.35 : 0.18;
+      const newX = current.x + dx * lerpSpeed;
+      const newY = current.y + dy * lerpSpeed;
+      mainShipPositionRef.current = { x: newX, y: newY };
+      mousePos.current = { x: newX, y: newY };
+    } else {
+      mainShipPositionRef.current = target;
+      mousePos.current = target;
+    }
+  });
+
   // Touch/mouse controls - convert screen to game coordinates
   useEffect(() => {
     const canvas = gl.domElement;
 
-    // Ship appears slightly above cursor so player can see what they're aiming at
-    const SHIP_OFFSET_Y = 0.8;
+    // Ship offset: higher for touch (finger obscures ship) vs mouse
+    const SHIP_OFFSET_Y_MOUSE = 0.8;
+    const SHIP_OFFSET_Y_TOUCH = 2.5; // Much higher so ship is visible above finger
 
     // Camera settings for coordinate calculation
     const CAMERA_Y = 1.5; // Camera y position
 
-    const screenToGame = (clientX: number, clientY: number) => {
+    const screenToGame = (clientX: number, clientY: number, isTouch: boolean) => {
       const rect = canvas.getBoundingClientRect();
 
       // Use responsive zoom for coordinate calculation
@@ -1738,8 +1768,9 @@ function GameScene() {
       const normalizedY = (clientY - rect.top) / rect.height;
 
       // Convert to world coordinates (centered on camera position)
+      const offsetY = isTouch ? SHIP_OFFSET_Y_TOUCH : SHIP_OFFSET_Y_MOUSE;
       const worldX = (normalizedX - 0.5) * visibleWidth;
-      const worldY = CAMERA_Y + (0.5 - normalizedY) * visibleHeight + SHIP_OFFSET_Y;
+      const worldY = CAMERA_Y + (0.5 - normalizedY) * visibleHeight + offsetY;
 
       // Clamp to game bounds
       const gameX = Math.max(GAME_BOUNDS.minX, Math.min(GAME_BOUNDS.maxX, worldX));
@@ -1748,38 +1779,50 @@ function GameScene() {
     };
 
     const handleMouseMove = (e: MouseEvent) => {
-      const pos = screenToGame(e.clientX, e.clientY);
+      isTouchInputRef.current = false;
+      const pos = screenToGame(e.clientX, e.clientY, false);
+      // Mouse: direct position (no interpolation needed, always tracking)
       mousePos.current = pos;
-      // Update ref directly for lag-free rendering (no React state)
       mainShipPositionRef.current = pos;
+      shipTargetRef.current = pos;
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
-        mousePos.current = pos;
-        mainShipPositionRef.current = pos;
+        isTouchingRef.current = true;
+        const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
+        shipTargetRef.current = pos;
       }
     };
 
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
+      isTouchInputRef.current = true;
+      isTouchingRef.current = true;
       if (e.touches.length > 0) {
-        const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY);
-        mousePos.current = pos;
-        mainShipPositionRef.current = pos;
+        const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
+        // Set target - ship will smoothly move there
+        shipTargetRef.current = pos;
       }
+    };
+
+    const handleTouchEnd = () => {
+      isTouchingRef.current = false;
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
     canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+    canvas.addEventListener('touchend', handleTouchEnd);
+    canvas.addEventListener('touchcancel', handleTouchEnd);
 
     return () => {
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
+      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('touchcancel', handleTouchEnd);
     };
   }, [gl, cameraZoom]);
 
