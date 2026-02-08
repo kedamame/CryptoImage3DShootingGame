@@ -1866,9 +1866,9 @@ function GameScene() {
         </>
       )}
 
-      {/* Fever coin counter display (show collected/required) - positioned at bottom center */}
+      {/* Fever coin counter display (show collected/required) - positioned lower to avoid gameplay overlap */}
       {feverCoinCount > 0 && !isFeverTime && (
-        <group position={[0, -4.5, 3]}>
+        <group position={[0, -6, 3]}>
           {/* Counter background - larger and more visible */}
           <mesh position={[0, 0, -0.1]}>
             <boxGeometry args={[2.5, 0.7, 0.1]} />

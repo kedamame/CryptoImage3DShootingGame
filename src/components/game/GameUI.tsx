@@ -62,7 +62,7 @@ export function GameUI() {
 
   return (
     <div className="absolute inset-0 pointer-events-none">
-      {/* Top HUD */}
+      {/* Top HUD - Score, Lives, Pause only */}
       {isPlaying && (
         <div className="absolute top-4 left-4 right-4 flex justify-between items-start pointer-events-auto">
           {/* Score */}
@@ -71,44 +71,19 @@ export function GameUI() {
             <div className="score-display">{score.toLocaleString()}</div>
           </div>
 
-          {/* Lives & Power-ups */}
-          <div className="game-panel flex flex-col items-end gap-2">
-            <div className="flex gap-1">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className={`w-6 h-6 rounded ${
-                    i < lives ? 'bg-pop-red' : 'bg-pop-gray/50'
-                  }`}
-                  style={{
-                    clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)',
-                  }}
-                />
-              ))}
-            </div>
-
-            {/* Extra ships indicator */}
-            {extraShipCount > 0 && (
-              <div className="text-pop-pink text-xs">
-                +{extraShipCount} SHIPS
-              </div>
-            )}
-
-            {/* Active power-ups with timers - compact horizontal layout */}
-            <div className="flex flex-wrap gap-1 justify-end max-w-[180px]">
-              {activePowerUps.rapidFire && (
-                <PowerUpTimer expireTime={powerUpExpireTimes?.rapidFire || 0} color={POWER_UP_COLORS.rapid_fire} label="Rapid" />
-              )}
-              {activePowerUps.shield && (
-                <PowerUpTimer expireTime={powerUpExpireTimes?.shield || 0} color={POWER_UP_COLORS.shield} label="Shield" />
-              )}
-              {activePowerUps.scoreBoost && (
-                <PowerUpTimer expireTime={powerUpExpireTimes?.scoreBoost || 0} color={POWER_UP_COLORS.score_boost} label="x2" />
-              )}
-              {activePowerUps.tripleShot && (
-                <PowerUpTimer expireTime={powerUpExpireTimes?.tripleShot || 0} color={POWER_UP_COLORS.triple_shot} label="Triple" />
-              )}
-            </div>
+          {/* Lives only */}
+          <div className="game-panel flex items-center gap-1">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div
+                key={i}
+                className={`w-6 h-6 rounded ${
+                  i < lives ? 'bg-pop-red' : 'bg-pop-gray/50'
+                }`}
+                style={{
+                  clipPath: 'polygon(50% 0%, 100% 35%, 80% 100%, 20% 100%, 0% 35%)',
+                }}
+              />
+            ))}
           </div>
 
           {/* Pause button */}
@@ -148,9 +123,31 @@ export function GameUI() {
         </div>
       )}
 
-      {/* Power-up legend (bottom) */}
+      {/* Bottom area: active power-ups + extra ships + legend */}
       {isPlaying && !isPaused && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
+          {/* Active power-up timers & extra ships */}
+          {(activePowerUps.rapidFire || activePowerUps.shield || activePowerUps.scoreBoost || activePowerUps.tripleShot || extraShipCount > 0) && (
+            <div className="game-panel flex items-center gap-2 px-2 py-1">
+              {extraShipCount > 0 && (
+                <span className="text-pop-pink text-[10px] font-bold">+{extraShipCount} SHIPS</span>
+              )}
+              {activePowerUps.rapidFire && (
+                <PowerUpTimer expireTime={powerUpExpireTimes?.rapidFire || 0} color={POWER_UP_COLORS.rapid_fire} label="Rapid" />
+              )}
+              {activePowerUps.shield && (
+                <PowerUpTimer expireTime={powerUpExpireTimes?.shield || 0} color={POWER_UP_COLORS.shield} label="Shield" />
+              )}
+              {activePowerUps.scoreBoost && (
+                <PowerUpTimer expireTime={powerUpExpireTimes?.scoreBoost || 0} color={POWER_UP_COLORS.score_boost} label="x2" />
+              )}
+              {activePowerUps.tripleShot && (
+                <PowerUpTimer expireTime={powerUpExpireTimes?.tripleShot || 0} color={POWER_UP_COLORS.triple_shot} label="Triple" />
+              )}
+            </div>
+          )}
+
+          {/* Power-up legend */}
           <div className="game-panel flex items-center justify-center gap-2 sm:gap-4 px-2 py-1 text-[10px] sm:text-xs whitespace-nowrap">
             <div className="flex items-center gap-0.5">
               <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded" style={{ backgroundColor: POWER_UP_COLORS.extra_ship }} />
