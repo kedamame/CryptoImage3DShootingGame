@@ -178,18 +178,9 @@ export default function Home() {
     }
   }, [isPlaying]);
 
-  // Handle wallet connection
+  // Handle wallet connection - always show wallet options
   const handleConnect = async () => {
-    if (isInMiniApp) {
-      // In Mini App, try to connect with injected (Farcaster wallet)
-      const injectedConnector = connectors.find((c) => c.id === 'injected');
-      if (injectedConnector) {
-        connect({ connector: injectedConnector });
-      }
-    } else {
-      // Show wallet options for web
-      setShowWalletOptions(true);
-    }
+    setShowWalletOptions(true);
   };
 
   // Connect to specific wallet
@@ -204,7 +195,7 @@ export default function Home() {
   // Get wallet display name
   const getWalletName = (id: string) => {
     switch (id) {
-      case 'injected': return 'Browser Wallet';
+      case 'injected': return isInMiniApp ? 'Farcaster Wallet' : 'Browser Wallet';
       case 'coinbaseWalletSDK': return 'Coinbase Wallet';
       case 'metaMaskSDK': return 'MetaMask';
       case 'walletConnect': return 'WalletConnect';
@@ -382,7 +373,7 @@ export default function Home() {
                     {connector.id === 'coinbaseWalletSDK' && '🔵'}
                     {connector.id === 'metaMaskSDK' && '🦊'}
                     {connector.id === 'walletConnect' && '🔗'}
-                    {connector.id === 'injected' && '💼'}
+                    {connector.id === 'injected' && (isInMiniApp ? '🟣' : '💼')}
                   </div>
                   <span>{getWalletName(connector.id)}</span>
                 </button>
@@ -400,36 +391,39 @@ export default function Home() {
       )}
 
 
-      {/* Connection status */}
-      {isConnected && !isPlaying && (
-        <div className="absolute top-4 right-4 game-panel text-xs">
-          <div className="text-pop-green mb-1">Connected</div>
-          <div className="text-white/70 truncate max-w-[100px]">
-            {address?.slice(0, 6)}...{address?.slice(-4)}
-          </div>
-          <button
-            onClick={() => disconnect()}
-            className="text-pop-red text-xs mt-2 hover:underline"
-          >
-            Disconnect
-          </button>
-        </div>
-      )}
+      {/* User info & connection status - combined top bar */}
+      {!isPlaying && (user || isConnected) && (
+        <div className="absolute top-4 left-4 right-4 game-panel text-xs flex items-center justify-between gap-2">
+          {/* Farcaster user info (left) */}
+          {user ? (
+            <div className="flex items-center gap-2 min-w-0">
+              {user.pfpUrl && (
+                <img src={user.pfpUrl} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="text-white truncate">{user.displayName || user.username}</div>
+                <div className="text-white/50 truncate">@{user.username}</div>
+              </div>
+            </div>
+          ) : <div />}
 
-      {/* Farcaster user info */}
-      {user && !isPlaying && (
-        <div className="absolute top-4 left-4 game-panel text-xs flex items-center gap-2">
-          {user.pfpUrl && (
-            <img
-              src={user.pfpUrl}
-              alt=""
-              className="w-8 h-8 rounded-full"
-            />
+          {/* Wallet status (right) */}
+          {isConnected && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-right">
+                <div className="text-pop-green">Connected</div>
+                <div className="text-white/70 truncate max-w-[80px]">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </div>
+              </div>
+              <button
+                onClick={() => disconnect()}
+                className="text-pop-red hover:underline"
+              >
+                ×
+              </button>
+            </div>
           )}
-          <div>
-            <div className="text-white">{user.displayName || user.username}</div>
-            <div className="text-white/50">@{user.username}</div>
-          </div>
         </div>
       )}
     </main>
