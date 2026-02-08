@@ -22,11 +22,18 @@ function PowerUpLegendItem({ color, label, active, expireTime }: { color: string
   const seconds = Math.ceil(remaining / 1000);
 
   return (
-    <div className="flex items-center gap-0.5">
-      <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: color }} />
-      <span className={`font-bold ${active && remaining > 0 ? 'text-white' : 'text-white/80'}`}>
-        {active && remaining > 0 ? `${label} ${seconds}s` : label}
-      </span>
+    <div className="flex flex-col items-center gap-0">
+      {/* Countdown above */}
+      {active && remaining > 0 && (
+        <span className="font-bold text-[9px] leading-none" style={{ color }}>{seconds}s</span>
+      )}
+      {/* Icon + label */}
+      <div className="flex items-center gap-0.5">
+        <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: color }} />
+        <span className={`font-bold ${active && remaining > 0 ? 'text-white' : 'text-white/80'}`}>
+          {label}
+        </span>
+      </div>
     </div>
   );
 }
@@ -114,11 +121,14 @@ export function GameUI() {
         <div className="absolute bottom-2 left-1/2 -translate-x-1/2">
           <div className="game-panel flex items-center justify-center gap-2 sm:gap-3 px-2 py-1 text-[10px] sm:text-xs whitespace-nowrap">
             {/* +Ship */}
-            <div className="flex items-center gap-0.5">
-              <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: POWER_UP_COLORS.extra_ship }} />
-              <span className={`font-bold ${extraShipCount > 0 ? 'text-pop-pink' : 'text-white/80'}`}>
-                {extraShipCount > 0 ? `+${extraShipCount}` : '+Ship'}
-              </span>
+            <div className="flex flex-col items-center gap-0">
+              {extraShipCount > 0 && (
+                <span className="font-bold text-[9px] leading-none text-pop-pink">+{extraShipCount}</span>
+              )}
+              <div className="flex items-center gap-0.5">
+                <div className="w-2.5 h-2.5 rounded" style={{ backgroundColor: POWER_UP_COLORS.extra_ship }} />
+                <span className={`font-bold ${extraShipCount > 0 ? 'text-white' : 'text-white/80'}`}>Ship</span>
+              </div>
             </div>
             {/* Rapid */}
             <PowerUpLegendItem
