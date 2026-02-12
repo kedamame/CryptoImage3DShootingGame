@@ -1683,7 +1683,7 @@ function GameScene() {
 
       if (dist > 0.1) {
         // Constant speed: 30 units/sec - fast but visible movement
-        const moveSpeed = 30;
+        const moveSpeed = 60;
         const step = Math.min(moveSpeed * delta, dist);
         const newX = current.x + (dx / dist) * step;
         const newY = current.y + (dy / dist) * step;

@@ -512,10 +512,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let bossAboutToSpawn = false;
     if (!state.bossActive) {
       if (state.bossesDefeated === 0) {
-        // First boss: check if we're close to kill threshold
-        const killsForFirstBoss = KILLS_PER_BOSS;
-        // If we're within a few kills of the boss, consider it "about to spawn"
-        bossAboutToSpawn = state.killCount >= killsForFirstBoss - 2;
+        // First boss: check if we're within 2 seconds of 10-second spawn time
+        const FIRST_BOSS_DELAY = 10000;
+        const elapsed = currentTime - state.gameStartTime;
+        bossAboutToSpawn = elapsed >= (FIRST_BOSS_DELAY - BOSS_SPAWN_WARNING_TIME);
       } else if (state.lastBossDefeatedTime > 0) {
         // Subsequent bosses: check if we're within 2 seconds of spawn time
         const BOSS_RESPAWN_DELAY_CHECK = 30000; // Must match BOSS_RESPAWN_DELAY below
@@ -1696,9 +1696,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
     let shouldSpawnBoss = false;
     if (!state.bossActive && !isFeverActive) {
       if (state.bossesDefeated === 0) {
-        // First boss: check kill count
-        const killsForFirstBoss = KILLS_PER_BOSS;
-        shouldSpawnBoss = newKillCount >= killsForFirstBoss;
+        // First boss: spawns 10 seconds after game start
+        const FIRST_BOSS_DELAY = 10000;
+        shouldSpawnBoss = currentTime - state.gameStartTime >= FIRST_BOSS_DELAY;
       } else if (state.lastBossDefeatedTime > 0) {
         // Subsequent bosses: spawn 20 seconds after defeat
         shouldSpawnBoss = currentTime - state.lastBossDefeatedTime >= BOSS_RESPAWN_DELAY;
