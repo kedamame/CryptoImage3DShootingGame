@@ -18,14 +18,18 @@ export type EnemyAttackPattern =
   | 'wave'        // Sine wave pattern (late game)
   | 'burst'       // Quick 3-shot burst (late game)
   | 'spiral'      // Spiral pattern (boss - rotating 6-way shot)
-  | 'barrage'     // Heavy barrage (boss - wide spread downward)
+  | 'crossfire'   // Cross-shaped bullets from sides (boss - pincer attack)
   | 'laser'       // Horizontal laser sweep (boss - sweeps left/right)
   | 'ring'        // Expanding rings (boss - circular waves)
   | 'homing'      // Homing missiles (boss - tracks player)
   | 'hydra'       // Multi-head attack (boss - alternating directional shots)
-  | 'kraken';     // Tentacle swipe (boss - wave-like sweeping pattern)
+  | 'kraken'      // Tentacle swipe (boss - wave-like sweeping pattern)
+  | 'meteor'      // Raining meteor shower (boss - random falling bullets)
+  | 'mirror'      // Mirror shot (boss - aimed + reflected shots)
+  | 'vortex';     // Vortex pull (boss - inward spiraling bullets)
 
-export type BossType = 'demon' | 'mech' | 'dragon' | 'golem' | 'phantom' | 'sprite' | 'hydra' | 'kraken';
+export type BossType = 'demon' | 'mech' | 'dragon' | 'golem' | 'phantom' | 'sprite' | 'hydra' | 'kraken'
+  | 'twins' | 'chimera' | 'reaper' | 'leviathan';
 
 export interface Enemy {
   id: string;

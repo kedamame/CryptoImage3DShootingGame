@@ -427,7 +427,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         // Demon: body s*2 wide, head s*1.5 wide. Excludes wings at ±s*1.8
         { pattern: 'spiral', bossType: 'demon', fireRate: 250, size: 2.5, hitbox: { halfW: 1.0 * 2.5 * 0.8, top: 1.5 * 2.5 * 0.8, bottom: 0.75 * 2.5 * 0.8 } },
         // Mech: body s*2.2 wide. Excludes shoulder cannons at ±s*1.55, arms at ±s*1.7
-        { pattern: 'barrage', bossType: 'mech', fireRate: 400, size: 2.8, hitbox: { halfW: 1.1 * 2.8 * 0.8, top: 1.5 * 2.8 * 0.8, bottom: 0.8 * 2.8 * 0.8 } },
+        { pattern: 'crossfire', bossType: 'mech', fireRate: 400, size: 2.8, hitbox: { halfW: 1.1 * 2.8 * 0.8, top: 1.5 * 2.8 * 0.8, bottom: 0.8 * 2.8 * 0.8 } },
         // Dragon: body s*2.4 wide, head+neck narrow. Excludes wings at ±s*2.0, tail
         { pattern: 'laser', bossType: 'dragon', fireRate: 200, size: 2.6, hitbox: { halfW: 1.2 * 2.6 * 0.8, top: 1.7 * 2.6 * 0.8, bottom: 0.6 * 2.6 * 0.8 } },
         // Golem: body s*2.5 wide. Excludes massive arms at ±s*2.0, fists, crystals
@@ -440,11 +440,53 @@ export const useGameStore = create<GameStore>((set, get) => ({
         { pattern: 'hydra', bossType: 'hydra', fireRate: 300, size: 2.7, hitbox: { halfW: 1.1 * 2.7 * 0.8, top: 1.8 * 2.7 * 0.8, bottom: 0.7 * 2.7 * 0.8 } },
         // Kraken: body s*2.5 wide. Excludes tentacles below body
         { pattern: 'kraken', bossType: 'kraken', fireRate: 350, size: 3.2, hitbox: { halfW: 1.25 * 3.2 * 0.8, top: 1.7 * 3.2 * 0.8, bottom: 0.6 * 3.2 * 0.8 } },
+        // Twins: dual boss - two smaller bosses appear simultaneously (pattern overridden in spawn)
+        { pattern: 'spiral', bossType: 'twins', fireRate: 500, size: 2.0, hitbox: { halfW: 0.9 * 2.0 * 0.8, top: 1.2 * 2.0 * 0.8, bottom: 0.7 * 2.0 * 0.8 } },
+        // Chimera: multi-element boss with meteor shower
+        { pattern: 'meteor', bossType: 'chimera', fireRate: 350, size: 2.8, hitbox: { halfW: 1.2 * 2.8 * 0.8, top: 1.6 * 2.8 * 0.8, bottom: 0.8 * 2.8 * 0.8 } },
+        // Reaper: dark cloaked boss with mirror shots
+        { pattern: 'mirror', bossType: 'reaper', fireRate: 300, size: 2.3, hitbox: { halfW: 0.8 * 2.3 * 0.8, top: 1.8 * 2.3 * 0.8, bottom: 1.0 * 2.3 * 0.8 } },
+        // Leviathan: massive sea serpent with vortex attack
+        { pattern: 'vortex', bossType: 'leviathan', fireRate: 250, size: 3.5, hitbox: { halfW: 1.3 * 3.5 * 0.8, top: 1.5 * 3.5 * 0.8, bottom: 0.8 * 3.5 * 0.8 } },
       ];
 
       const config = bossConfigs[state.bossesDefeated % bossConfigs.length];
       // Boss health is 9x normal (base 30 + 10 per boss defeated, then 9x)
       const bossHealth = (30 + state.bossesDefeated * 10) * 9;
+
+      // Twins boss: spawn TWO smaller bosses at different X positions
+      if (config.bossType === 'twins') {
+        const twinHealth = Math.floor(bossHealth * 0.6); // Each twin has 60% HP
+        const newEnemies: Enemy[] = [];
+        const positions = [-3, 3]; // Left and right
+        const patterns: EnemyAttackPattern[] = ['spiral', 'homing']; // Different attack per twin
+        for (let i = 0; i < 2; i++) {
+          newEnemies.push({
+            id: `boss-${state.enemyIdCounter + i}`,
+            asset: { id: 'boss', type: 'token', name: 'TWIN', imageUrl: '', contractAddress: '' },
+            position: { x: positions[i], y: GAME_BOUNDS.maxY + 2, z: 0 },
+            velocity: { x: 0, y: -0.5, z: 0 },
+            health: twinHealth,
+            maxHealth: twinHealth,
+            size: config.size,
+            isBlock: false,
+            isBoss: true,
+            isShiny: false,
+            isElite: false,
+            bossType: 'twins',
+            hitbox: config.hitbox,
+            attackPattern: patterns[i],
+            lastFireTime: 0,
+            fireRate: config.fireRate,
+          });
+        }
+        console.log('Spawning TWIN bosses!');
+        return {
+          enemies: [...state.enemies, ...newEnemies],
+          enemyIdCounter: state.enemyIdCounter + 2,
+          bossActive: true,
+        };
+      }
 
       const boss: Enemy = {
         id: `boss-${state.enemyIdCounter}`,
@@ -1100,35 +1142,75 @@ export const useGameStore = create<GameStore>((set, get) => ({
             }
             break;
 
-          case 'barrage':
-            // Boss barrage pattern - sweeping fan of bullets that moves left/right (slower, varied)
-            // Difficulty scales with bosses defeated
+          case 'crossfire':
+            // Mech boss - cross-shaped pincer attack from both sides + aimed shots
             {
               const bossLevel = state.bossesDefeated;
-              const sweepCycle = Math.max(2000, 3500 - bossLevel * 150); // Slower sweeps
-              const sweepProgress = (currentTime % sweepCycle) / sweepCycle;
-              const sweepOffset = Math.sin(sweepProgress * Math.PI * 2) * (0.3 + bossLevel * 0.03);
-              const numBullets = 3 + Math.floor(bossLevel / 3); // Fewer bullets
-              const bulletSpeed = 0.45 + bossLevel * 0.025; // Much slower bullets
+              const phase = Math.floor(currentTime / 2000) % 4;
+              const bulletSpeed = 0.4 + bossLevel * 0.02;
+              const subPhase = (currentTime % 2000) / 2000;
 
-              // Add alternating density pattern
-              const densityPhase = Math.floor(currentTime / 2000) % 3;
-              const actualBullets = densityPhase === 2 ? numBullets + 2 : numBullets;
-
-              for (let i = 0; i < actualBullets; i++) {
-                const baseAngle = ((i - (actualBullets - 1) / 2) / (actualBullets - 1)) * Math.PI * 0.6 - Math.PI / 2;
-                const angle = baseAngle + sweepOffset;
-                newEnemyBullets.push({
-                  id: `eb-${enemyBulletIdCounter++}`,
-                  position: { ...enemy.position },
-                  velocity: {
-                    x: Math.cos(angle) * currentBulletSpeed * bulletSpeed,
-                    y: Math.sin(angle) * currentBulletSpeed * bulletSpeed,
-                    z: 0,
-                  },
-                  size: 0.22,
-                  color: '#FF6B6B',
-                });
+              if (phase === 0 || phase === 2) {
+                // Cross pattern: bullets from left and right sides of boss converging
+                const numPairs = 2 + Math.floor(bossLevel / 3);
+                for (let i = 0; i < numPairs; i++) {
+                  const yOffset = (i - (numPairs - 1) / 2) * 0.6;
+                  const xSpeed = currentBulletSpeed * bulletSpeed * 0.8;
+                  const ySpeed = currentBulletSpeed * bulletSpeed * 0.5;
+                  // Left cannon
+                  newEnemyBullets.push({
+                    id: `eb-${enemyBulletIdCounter++}`,
+                    position: { x: enemy.position.x - 1.5, y: enemy.position.y + yOffset, z: 0 },
+                    velocity: { x: xSpeed, y: -ySpeed, z: 0 },
+                    size: 0.2, color: '#FF4444',
+                  });
+                  // Right cannon
+                  newEnemyBullets.push({
+                    id: `eb-${enemyBulletIdCounter++}`,
+                    position: { x: enemy.position.x + 1.5, y: enemy.position.y + yOffset, z: 0 },
+                    velocity: { x: -xSpeed, y: -ySpeed, z: 0 },
+                    size: 0.2, color: '#FF4444',
+                  });
+                }
+              } else if (phase === 1) {
+                // Aimed burst at player
+                if (mainPlayer) {
+                  const dx = mainPlayer.position.x - enemy.position.x;
+                  const dy = mainPlayer.position.y - enemy.position.y;
+                  const dist = Math.sqrt(dx * dx + dy * dy);
+                  if (dist > 0) {
+                    const baseAngle = Math.atan2(dy, dx);
+                    for (let i = -1; i <= 1; i++) {
+                      newEnemyBullets.push({
+                        id: `eb-${enemyBulletIdCounter++}`,
+                        position: { ...enemy.position },
+                        velocity: {
+                          x: Math.cos(baseAngle + i * 0.15) * currentBulletSpeed * bulletSpeed,
+                          y: Math.sin(baseAngle + i * 0.15) * currentBulletSpeed * bulletSpeed,
+                          z: 0,
+                        },
+                        size: 0.25, color: '#FF6B6B',
+                      });
+                    }
+                  }
+                }
+              } else {
+                // Diagonal rain
+                const numBullets = 3 + Math.floor(bossLevel / 2);
+                for (let i = 0; i < numBullets; i++) {
+                  const xPos = enemy.position.x + (i - (numBullets - 1) / 2) * 1.2;
+                  const dir = subPhase < 0.5 ? 1 : -1;
+                  newEnemyBullets.push({
+                    id: `eb-${enemyBulletIdCounter++}`,
+                    position: { x: xPos, y: enemy.position.y, z: 0 },
+                    velocity: {
+                      x: dir * currentBulletSpeed * bulletSpeed * 0.3,
+                      y: -currentBulletSpeed * bulletSpeed * 0.7,
+                      z: 0,
+                    },
+                    size: 0.18, color: '#A0AEC0',
+                  });
+                }
               }
             }
             break;
@@ -1362,6 +1444,159 @@ export const useGameStore = create<GameStore>((set, get) => ({
               }
             }
             break;
+
+          case 'meteor':
+            // Chimera boss - raining meteor shower from random positions above
+            {
+              const bossLevel = state.bossesDefeated;
+              const bulletSpeed = 0.35 + bossLevel * 0.02;
+              const numMeteors = 2 + Math.floor(bossLevel / 3);
+              const phase = Math.floor(currentTime / 1500) % 3;
+
+              for (let i = 0; i < numMeteors; i++) {
+                // Meteors fall from random X positions near the boss
+                const xOffset = (Math.random() - 0.5) * 8;
+                const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.6;
+                newEnemyBullets.push({
+                  id: `eb-${enemyBulletIdCounter++}`,
+                  position: { x: enemy.position.x + xOffset, y: enemy.position.y - 0.5, z: 0 },
+                  velocity: {
+                    x: Math.cos(angle) * currentBulletSpeed * bulletSpeed * 0.6,
+                    y: Math.sin(angle) * currentBulletSpeed * bulletSpeed,
+                    z: 0,
+                  },
+                  size: 0.25 + Math.random() * 0.15,
+                  color: phase === 0 ? '#FF4500' : phase === 1 ? '#FF6347' : '#DC143C',
+                });
+              }
+              // Occasional aimed fireball at player
+              if (mainPlayer && Math.random() < 0.3) {
+                const dx = mainPlayer.position.x - enemy.position.x;
+                const dy = mainPlayer.position.y - enemy.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                  newEnemyBullets.push({
+                    id: `eb-${enemyBulletIdCounter++}`,
+                    position: { ...enemy.position },
+                    velocity: {
+                      x: (dx / dist) * currentBulletSpeed * bulletSpeed * 1.2,
+                      y: (dy / dist) * currentBulletSpeed * bulletSpeed * 1.2,
+                      z: 0,
+                    },
+                    size: 0.3, color: '#FFD700',
+                  });
+                }
+              }
+            }
+            break;
+
+          case 'mirror':
+            // Reaper boss - aimed shots that split into mirrored pairs
+            {
+              const bossLevel = state.bossesDefeated;
+              const bulletSpeed = 0.4 + bossLevel * 0.02;
+              const phase = Math.floor(currentTime / 1800) % 3;
+
+              if (mainPlayer) {
+                const dx = mainPlayer.position.x - enemy.position.x;
+                const dy = mainPlayer.position.y - enemy.position.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist > 0) {
+                  const baseAngle = Math.atan2(dy, dx);
+                  // Main aimed shot
+                  newEnemyBullets.push({
+                    id: `eb-${enemyBulletIdCounter++}`,
+                    position: { ...enemy.position },
+                    velocity: {
+                      x: Math.cos(baseAngle) * currentBulletSpeed * bulletSpeed,
+                      y: Math.sin(baseAngle) * currentBulletSpeed * bulletSpeed,
+                      z: 0,
+                    },
+                    size: 0.22, color: '#9400D3',
+                  });
+                  // Mirror split: symmetric shots around the aimed direction
+                  const mirrorCount = 1 + Math.floor(bossLevel / 4);
+                  for (let i = 1; i <= mirrorCount; i++) {
+                    const spread = i * 0.4;
+                    newEnemyBullets.push({
+                      id: `eb-${enemyBulletIdCounter++}`,
+                      position: { ...enemy.position },
+                      velocity: {
+                        x: Math.cos(baseAngle + spread) * currentBulletSpeed * bulletSpeed * 0.85,
+                        y: Math.sin(baseAngle + spread) * currentBulletSpeed * bulletSpeed * 0.85,
+                        z: 0,
+                      },
+                      size: 0.18, color: '#BA55D3',
+                    });
+                    newEnemyBullets.push({
+                      id: `eb-${enemyBulletIdCounter++}`,
+                      position: { ...enemy.position },
+                      velocity: {
+                        x: Math.cos(baseAngle - spread) * currentBulletSpeed * bulletSpeed * 0.85,
+                        y: Math.sin(baseAngle - spread) * currentBulletSpeed * bulletSpeed * 0.85,
+                        z: 0,
+                      },
+                      size: 0.18, color: '#BA55D3',
+                    });
+                  }
+                  // Phase 2: additional circular wave
+                  if (phase === 2) {
+                    for (let i = 0; i < 8; i++) {
+                      const a = (Math.PI * 2 * i) / 8;
+                      newEnemyBullets.push({
+                        id: `eb-${enemyBulletIdCounter++}`,
+                        position: { ...enemy.position },
+                        velocity: {
+                          x: Math.cos(a) * currentBulletSpeed * bulletSpeed * 0.5,
+                          y: Math.sin(a) * currentBulletSpeed * bulletSpeed * 0.5,
+                          z: 0,
+                        },
+                        size: 0.15, color: '#DDA0DD',
+                      });
+                    }
+                  }
+                }
+              }
+            }
+            break;
+
+          case 'vortex':
+            // Leviathan boss - inward spiraling bullet pattern creating a vortex
+            {
+              const bossLevel = state.bossesDefeated;
+              const bulletSpeed = 0.35 + bossLevel * 0.02;
+              const spiralTime = currentTime * 0.003;
+              const numArms = 3 + Math.floor(bossLevel / 4);
+
+              for (let i = 0; i < numArms; i++) {
+                const armAngle = spiralTime + (Math.PI * 2 * i) / numArms;
+                // Bullets spiral outward but drift downward
+                const speed = currentBulletSpeed * bulletSpeed;
+                newEnemyBullets.push({
+                  id: `eb-${enemyBulletIdCounter++}`,
+                  position: { ...enemy.position },
+                  velocity: {
+                    x: Math.cos(armAngle) * speed * 0.7,
+                    y: Math.sin(armAngle) * speed * 0.5 - speed * 0.3,
+                    z: 0,
+                  },
+                  size: 0.2, color: '#00CED1',
+                });
+                // Secondary bullets offset
+                const armAngle2 = armAngle + 0.3;
+                newEnemyBullets.push({
+                  id: `eb-${enemyBulletIdCounter++}`,
+                  position: { ...enemy.position },
+                  velocity: {
+                    x: Math.cos(armAngle2) * speed * 0.5,
+                    y: Math.sin(armAngle2) * speed * 0.4 - speed * 0.4,
+                    z: 0,
+                  },
+                  size: 0.15, color: '#20B2AA',
+                });
+              }
+            }
+            break;
         }
 
         // Boss anti-camping attack: if player is above the boss, fire additional aimed shots
@@ -1516,14 +1751,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 selectedType = 'heal'; // 3% chance - very rare heart HP recovery
               } else if (roll < 0.10) {
                 selectedType = 'extra_ship'; // 7% chance
-              } else if (roll < 0.45) {
-                selectedType = 'rapid_fire'; // 35% chance - most common
-              } else if (roll < 0.57) {
-                selectedType = 'shield'; // 12% chance (reduced)
-              } else if (roll < 0.77) {
-                selectedType = 'score_boost'; // 20% chance
+              } else if (roll < 0.47) {
+                selectedType = 'rapid_fire'; // 37% chance - most common
+              } else if (roll < 0.53) {
+                selectedType = 'shield'; // 6% chance (halved from 12%)
+              } else if (roll < 0.75) {
+                selectedType = 'score_boost'; // 22% chance
               } else {
-                selectedType = 'triple_shot'; // 23% chance
+                selectedType = 'triple_shot'; // 25% chance
               }
               powerUps.push({
                 id: `powerup-${(updates.powerUpIdCounter || state.powerUpIdCounter) + i}`,

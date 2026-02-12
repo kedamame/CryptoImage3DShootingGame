@@ -324,6 +324,14 @@ function Enemy({
           return { main: '#4B0082', accent: '#A66CFF', dark: '#2A0050', eye: '#FF9FF3', glow: '#A66CFF' };
         case 'sprite':
           return { main: '#00CED1', accent: '#7FFFD4', dark: '#008B8B', eye: '#FFFFFF', glow: '#00FFFF' };
+        case 'twins':
+          return { main: '#C71585', accent: '#FF69B4', dark: '#8B0A50', eye: '#FFFF00', glow: '#FF1493' };
+        case 'chimera':
+          return { main: '#B22222', accent: '#FF6347', dark: '#8B0000', eye: '#FFD700', glow: '#FF4500' };
+        case 'reaper':
+          return { main: '#1C1C1C', accent: '#696969', dark: '#000000', eye: '#9400D3', glow: '#8A2BE2' };
+        case 'leviathan':
+          return { main: '#006994', accent: '#00CED1', dark: '#003545', eye: '#7FFFD4', glow: '#40E0D0' };
         default:
           return { main: '#8B0000', accent: '#FF6B6B', dark: '#400010', eye: '#FFD93D', glow: '#FF6B6B' };
       }
@@ -971,6 +979,205 @@ function Enemy({
           {health < maxHealth && (
             <mesh position={[0, s * 2.0, 0]}>
               <boxGeometry args={[s * 2.5 * healthPercent, 0.15, 0.15]} />
+              <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
+            </mesh>
+          )}
+        </group>
+      );
+    }
+
+    // Twins boss - compact fighter pair
+    if (bossType === 'twins') {
+      return (
+        <group ref={groupRef} position={position}>
+          {/* Compact body */}
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[s * 1.6, s * 1.2, s * 1.0]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          {/* Head */}
+          <mesh position={[0, s * 0.8, 0]}>
+            <boxGeometry args={[s * 1.0, s * 0.8, s * 0.8]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          {/* Eyes */}
+          <mesh position={[-s * 0.25, s * 0.9, s * 0.41]}>
+            <boxGeometry args={[s * 0.25, s * 0.2, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          <mesh position={[s * 0.25, s * 0.9, s * 0.41]}>
+            <boxGeometry args={[s * 0.25, s * 0.2, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          {/* Energy wings */}
+          <mesh position={[-s * 1.0, s * 0.3, -s * 0.1]}>
+            <boxGeometry args={[s * 0.4, s * 0.8, s * 0.1]} />
+            <meshBasicMaterial color={colors.accent} transparent opacity={0.7} />
+          </mesh>
+          <mesh position={[s * 1.0, s * 0.3, -s * 0.1]}>
+            <boxGeometry args={[s * 0.4, s * 0.8, s * 0.1]} />
+            <meshBasicMaterial color={colors.accent} transparent opacity={0.7} />
+          </mesh>
+          {/* Health bar */}
+          {health < maxHealth && (
+            <mesh position={[0, s * 1.4, 0]}>
+              <boxGeometry args={[s * 1.6 * healthPercent, 0.12, 0.12]} />
+              <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
+            </mesh>
+          )}
+        </group>
+      );
+    }
+
+    // Chimera boss - multi-element beast with fire/ice
+    if (bossType === 'chimera') {
+      return (
+        <group ref={groupRef} position={position}>
+          {/* Massive body */}
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[s * 2.2, s * 1.5, s * 1.2]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          {/* Lion head (center) */}
+          <mesh position={[0, s * 1.0, s * 0.2]}>
+            <boxGeometry args={[s * 1.2, s * 0.9, s * 0.9]} />
+            <meshBasicMaterial color={colors.accent} />
+          </mesh>
+          {/* Mane */}
+          <mesh position={[0, s * 1.0, -s * 0.2]}>
+            <boxGeometry args={[s * 1.6, s * 1.2, s * 0.3]} />
+            <meshBasicMaterial color='#DAA520' />
+          </mesh>
+          {/* Eyes */}
+          <mesh position={[-s * 0.3, s * 1.1, s * 0.65]}>
+            <boxGeometry args={[s * 0.25, s * 0.2, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          <mesh position={[s * 0.3, s * 1.1, s * 0.65]}>
+            <boxGeometry args={[s * 0.25, s * 0.2, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          {/* Fire tail */}
+          <mesh position={[0, -s * 0.3, -s * 0.8]}>
+            <boxGeometry args={[s * 0.3, s * 0.4, s * 0.6]} />
+            <meshBasicMaterial color='#FF4500' />
+          </mesh>
+          <mesh position={[0, -s * 0.1, -s * 1.1]}>
+            <boxGeometry args={[s * 0.2, s * 0.3, s * 0.3]} />
+            <meshBasicMaterial color='#FFD700' />
+          </mesh>
+          {/* Health bar */}
+          {health < maxHealth && (
+            <mesh position={[0, s * 1.8, 0]}>
+              <boxGeometry args={[s * 2.2 * healthPercent, 0.15, 0.15]} />
+              <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
+            </mesh>
+          )}
+        </group>
+      );
+    }
+
+    // Reaper boss - dark cloaked figure with scythe
+    if (bossType === 'reaper') {
+      return (
+        <group ref={groupRef} position={position}>
+          {/* Cloak body - tall and narrow */}
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[s * 1.4, s * 2.0, s * 0.9]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          {/* Hood */}
+          <mesh position={[0, s * 1.3, s * 0.1]}>
+            <boxGeometry args={[s * 1.1, s * 0.9, s * 0.8]} />
+            <meshBasicMaterial color={colors.dark} />
+          </mesh>
+          {/* Glowing eyes in hood */}
+          <mesh position={[-s * 0.2, s * 1.3, s * 0.45]}>
+            <boxGeometry args={[s * 0.2, s * 0.1, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          <mesh position={[s * 0.2, s * 1.3, s * 0.45]}>
+            <boxGeometry args={[s * 0.2, s * 0.1, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          {/* Scythe handle */}
+          <mesh position={[s * 0.9, s * 0.5, 0]}>
+            <boxGeometry args={[s * 0.1, s * 2.0, s * 0.1]} />
+            <meshBasicMaterial color={colors.accent} />
+          </mesh>
+          {/* Scythe blade */}
+          <mesh position={[s * 0.5, s * 1.5, s * 0.1]}>
+            <boxGeometry args={[s * 0.8, s * 0.15, s * 0.05]} />
+            <meshBasicMaterial color={colors.glow} />
+          </mesh>
+          {/* Cloak wisps */}
+          <mesh position={[-s * 0.3, -s * 0.9, 0]}>
+            <boxGeometry args={[s * 0.3, s * 0.5, s * 0.2]} />
+            <meshBasicMaterial color={colors.main} transparent opacity={0.6} />
+          </mesh>
+          <mesh position={[s * 0.3, -s * 1.0, 0]}>
+            <boxGeometry args={[s * 0.25, s * 0.4, s * 0.15]} />
+            <meshBasicMaterial color={colors.dark} transparent opacity={0.5} />
+          </mesh>
+          {/* Health bar */}
+          {health < maxHealth && (
+            <mesh position={[0, s * 2.0, 0]}>
+              <boxGeometry args={[s * 1.4 * healthPercent, 0.15, 0.15]} />
+              <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
+            </mesh>
+          )}
+        </group>
+      );
+    }
+
+    // Leviathan boss - massive sea serpent
+    if (bossType === 'leviathan') {
+      return (
+        <group ref={groupRef} position={position}>
+          {/* Massive serpentine body */}
+          <mesh position={[0, 0, 0]}>
+            <boxGeometry args={[s * 2.4, s * 1.6, s * 1.3]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          {/* Head - angular and menacing */}
+          <mesh position={[0, s * 1.1, s * 0.3]}>
+            <boxGeometry args={[s * 1.4, s * 0.9, s * 1.0]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          {/* Jaw */}
+          <mesh position={[0, s * 0.7, s * 0.8]}>
+            <boxGeometry args={[s * 1.0, s * 0.3, s * 0.5]} />
+            <meshBasicMaterial color={colors.dark} />
+          </mesh>
+          {/* Glowing eyes */}
+          <mesh position={[-s * 0.4, s * 1.2, s * 0.8]}>
+            <boxGeometry args={[s * 0.25, s * 0.3, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          <mesh position={[s * 0.4, s * 1.2, s * 0.8]}>
+            <boxGeometry args={[s * 0.25, s * 0.3, 0.1]} />
+            <meshBasicMaterial color={colors.eye} />
+          </mesh>
+          {/* Dorsal fins */}
+          {[-0.5, 0, 0.5].map((x, i) => (
+            <mesh key={i} position={[s * x, s * 0.7, -s * 0.5]}>
+              <boxGeometry args={[s * 0.15, s * (0.5 - Math.abs(x) * 0.3), s * 0.15]} />
+              <meshBasicMaterial color={colors.accent} />
+            </mesh>
+          ))}
+          {/* Tail segments */}
+          <mesh position={[0, -s * 0.3, -s * 0.8]}>
+            <boxGeometry args={[s * 0.8, s * 0.6, s * 0.8]} />
+            <meshBasicMaterial color={colors.main} />
+          </mesh>
+          <mesh position={[0, -s * 0.5, -s * 1.3]}>
+            <boxGeometry args={[s * 0.5, s * 0.4, s * 0.5]} />
+            <meshBasicMaterial color={colors.accent} />
+          </mesh>
+          {/* Health bar */}
+          {health < maxHealth && (
+            <mesh position={[0, s * 1.8, 0]}>
+              <boxGeometry args={[s * 2.4 * healthPercent, 0.15, 0.15]} />
               <meshBasicMaterial color={healthPercent > 0.5 ? '#6BCB77' : '#FF6B6B'} />
             </mesh>
           )}
