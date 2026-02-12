@@ -11,13 +11,22 @@ import { POP_COLORS, BLOCK_COLORS, POWER_UP_COLORS, BOSS_COLORS, type PowerUpTyp
 // Cache for loaded textures
 const textureCache = new Map<string, THREE.Texture>();
 
+// Proxy external image URLs through our API to avoid CORS issues
+function proxyImageUrl(url: string): string {
+  if (!url) return url;
+  // Don't proxy data URIs, relative URLs, or already proxied URLs
+  if (url.startsWith('data:') || url.startsWith('/') || url.startsWith('blob:')) return url;
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
 // Preload and cache textures
 export function preloadTextures(imageUrls: string[]): Promise<void> {
   const loader = new TextureLoader();
   const promises = imageUrls.filter(url => url && !textureCache.has(url)).map(url => {
+    const proxiedUrl = proxyImageUrl(url);
     return new Promise<void>((resolve) => {
       loader.load(
-        url,
+        proxiedUrl,
         (texture) => {
           texture.minFilter = THREE.LinearFilter;
           texture.magFilter = THREE.LinearFilter;
@@ -295,7 +304,8 @@ function Enemy({
       } else {
         // Dynamically load if not cached
         const loader = new TextureLoader();
-        loader.load(imageUrl, (tex) => {
+        const proxiedUrl = proxyImageUrl(imageUrl);
+        loader.load(proxiedUrl, (tex) => {
           tex.minFilter = THREE.LinearFilter;
           tex.magFilter = THREE.LinearFilter;
           textureCache.set(imageUrl, tex);
@@ -1805,7 +1815,7 @@ const VoxelTerrain = memo(function VoxelTerrain() {
 const GAME_BOUNDS = {
   minX: -8,
   maxX: 8,
-  minY: -5,
+  minY: -7,
   maxY: 8,
 };
 

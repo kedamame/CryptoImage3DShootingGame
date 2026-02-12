@@ -5,7 +5,7 @@ import { POP_COLORS, BLOCK_COLORS, POWER_UP_DURATION, ENEMY_BULLET_COLORS, BOSS_
 const GAME_BOUNDS = {
   minX: -8,
   maxX: 8,
-  minY: -5,
+  minY: -7,
   maxY: 8,
 };
 
@@ -49,6 +49,7 @@ interface GameStore extends GameState {
     scoreBoost: number;
     tripleShot: number;
   };
+  pauseStartTime: number;
   lastExtraShipDecayTime: number;
   lastBossDefeatedTime: number;
   walletAssets: WalletAsset[];
@@ -115,6 +116,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     scoreBoost: 0,
     tripleShot: 0,
   },
+  pauseStartTime: 0,
   lastExtraShipDecayTime: 0,
   lastBossDefeatedTime: 0,
   extraShipCount: 0,
@@ -169,6 +171,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         scoreBoost: 0,
         tripleShot: 0,
       },
+      pauseStartTime: 0,
       lastExtraShipDecayTime: 0,
       lastBossDefeatedTime: 0,
       extraShipCount: 0,
@@ -191,8 +194,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
-  pauseGame: () => set({ isPaused: true }),
-  resumeGame: () => set({ isPaused: false }),
+  pauseGame: () => set({ isPaused: true, pauseStartTime: Date.now() }),
+  resumeGame: () => {
+    const state = get();
+    if (!state.isPaused || state.pauseStartTime === 0) {
+      set({ isPaused: false });
+      return;
+    }
+    const pauseDuration = Date.now() - state.pauseStartTime;
+    const shiftTime = (t: number) => (t > 0 ? t + pauseDuration : 0);
+    set({
+      isPaused: false,
+      pauseStartTime: 0,
+      invincibleUntil: shiftTime(state.invincibleUntil),
+      feverTimeUntil: shiftTime(state.feverTimeUntil),
+      powerUpExpireTimes: {
+        rapidFire: shiftTime(state.powerUpExpireTimes.rapidFire),
+        shield: shiftTime(state.powerUpExpireTimes.shield),
+        scoreBoost: shiftTime(state.powerUpExpireTimes.scoreBoost),
+        tripleShot: shiftTime(state.powerUpExpireTimes.tripleShot),
+      },
+      lastExtraShipDecayTime: shiftTime(state.lastExtraShipDecayTime),
+      gameStartTime: state.gameStartTime + pauseDuration,
+      lastSpawnTime: shiftTime(state.lastSpawnTime),
+      lastBlockSpawnTime: shiftTime(state.lastBlockSpawnTime),
+      lastBossDefeatedTime: shiftTime(state.lastBossDefeatedTime),
+      enemies: state.enemies.map(e => ({ ...e, lastFireTime: shiftTime(e.lastFireTime) })),
+    });
+  },
   endGame: () => set({ isPlaying: false, isGameOver: true }),
 
   movePlayer: (x, y) => {
