@@ -1669,7 +1669,8 @@ function GameScene() {
   const isTouchDraggingRef = useRef(false); // true once touchmove fires (finger dragging)
 
   // Smooth ship movement for re-tap only (not during drag)
-  useFrame(() => {
+  // Uses constant speed movement instead of lerp to avoid slow approach
+  useFrame((_, delta) => {
     const store = useGameStore.getState();
     if (!store.isPlaying || store.isPaused) return;
 
@@ -1681,10 +1682,12 @@ function GameScene() {
       const dy = target.y - current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist > 0.01) {
-        const lerpSpeed = 0.15;
-        const newX = current.x + dx * lerpSpeed;
-        const newY = current.y + dy * lerpSpeed;
+      if (dist > 0.05) {
+        // Move at constant high speed (40 units/sec) toward target
+        const moveSpeed = 40;
+        const step = Math.min(moveSpeed * delta, dist); // Don't overshoot
+        const newX = current.x + (dx / dist) * step;
+        const newY = current.y + (dy / dist) * step;
         mainShipPositionRef.current = { x: newX, y: newY };
         mousePos.current = { x: newX, y: newY };
       } else {
