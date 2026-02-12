@@ -1666,33 +1666,34 @@ function GameScene() {
 
   // Target position for smooth movement (used for touch re-tap interpolation)
   const shipTargetRef = useRef({ x: 0, y: -3 });
-  const isTouchDraggingRef = useRef(false); // true once touchmove fires (finger dragging)
+  const isTransitioningRef = useRef(false); // true while ship is moving to a new tap position
 
-  // Smooth ship movement for re-tap only (not during drag)
-  // Uses constant speed movement instead of lerp to avoid slow approach
+  // Always use constant-speed interpolation for touch movement
+  // Ship can NEVER teleport - it always travels smoothly to the target
   useFrame((_, delta) => {
     const store = useGameStore.getState();
     if (!store.isPlaying || store.isPaused) return;
 
-    // Only interpolate when NOT dragging (i.e. re-tap transition before first touchmove)
-    if (!isTouchDraggingRef.current) {
+    if (isTransitioningRef.current) {
       const target = shipTargetRef.current;
       const current = mainShipPositionRef.current;
       const dx = target.x - current.x;
       const dy = target.y - current.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist > 0.05) {
-        // Move at constant high speed (40 units/sec) toward target
-        const moveSpeed = 40;
-        const step = Math.min(moveSpeed * delta, dist); // Don't overshoot
+      if (dist > 0.1) {
+        // Constant speed: 30 units/sec - fast but visible movement
+        const moveSpeed = 30;
+        const step = Math.min(moveSpeed * delta, dist);
         const newX = current.x + (dx / dist) * step;
         const newY = current.y + (dy / dist) * step;
         mainShipPositionRef.current = { x: newX, y: newY };
         mousePos.current = { x: newX, y: newY };
       } else {
+        // Arrived at target - transition complete
         mainShipPositionRef.current = target;
         mousePos.current = target;
+        isTransitioningRef.current = false;
       }
     }
   });
@@ -1744,29 +1745,36 @@ function GameScene() {
     const handleTouchMove = (e: TouchEvent) => {
       e.preventDefault();
       if (e.touches.length > 0) {
-        isTouchDraggingRef.current = true;
         const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
-        // Direct position update during drag - no lag
-        mainShipPositionRef.current = pos;
-        mousePos.current = pos;
+        // Always update target - useFrame will smoothly move ship there
         shipTargetRef.current = pos;
+        // If ship has already caught up (not transitioning), follow directly for responsive drag
+        if (!isTransitioningRef.current) {
+          mainShipPositionRef.current = pos;
+          mousePos.current = pos;
+        }
       }
     };
 
     const handleTouchStart = (e: TouchEvent) => {
       e.preventDefault();
-      // Don't set dragging yet - let useFrame interpolate to target
-      // isTouchDraggingRef becomes true on first touchmove
-      isTouchDraggingRef.current = false;
       if (e.touches.length > 0) {
         const pos = screenToGame(e.touches[0].clientX, e.touches[0].clientY, true);
-        // Set target only - ship will smoothly interpolate there
+        // Check distance from current position - if far, transition smoothly
+        const current = mainShipPositionRef.current;
+        const dx = pos.x - current.x;
+        const dy = pos.y - current.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 0.5) {
+          // Far tap - smooth transition (no warp)
+          isTransitioningRef.current = true;
+        }
         shipTargetRef.current = pos;
       }
     };
 
     const handleTouchEnd = () => {
-      isTouchDraggingRef.current = false;
+      // Keep transitioning if still in progress
     };
 
     canvas.addEventListener('mousemove', handleMouseMove);
