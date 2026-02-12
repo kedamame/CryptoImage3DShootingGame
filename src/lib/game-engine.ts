@@ -1751,12 +1751,12 @@ export const useGameStore = create<GameStore>((set, get) => ({
                 selectedType = 'heal'; // 3% chance - very rare heart HP recovery
               } else if (roll < 0.10) {
                 selectedType = 'extra_ship'; // 7% chance
-              } else if (roll < 0.47) {
-                selectedType = 'rapid_fire'; // 37% chance - most common
-              } else if (roll < 0.53) {
-                selectedType = 'shield'; // 6% chance (halved from 12%)
+              } else if (roll < 0.45) {
+                selectedType = 'rapid_fire'; // 35% chance - most common
+              } else if (roll < 0.55) {
+                selectedType = 'shield'; // 10% chance
               } else if (roll < 0.75) {
-                selectedType = 'score_boost'; // 22% chance
+                selectedType = 'score_boost'; // 20% chance
               } else {
                 selectedType = 'triple_shot'; // 25% chance
               }
