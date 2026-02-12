@@ -1940,13 +1940,17 @@ export const useGameStore = create<GameStore>((set, get) => ({
       }
     }
 
-    // Update boss state
-    let newBossActive = state.bossActive;
+    // Update boss state - check if ANY boss is still alive after this frame
     let newBossesDefeated = state.bossesDefeated;
     let newLastBossDefeatedTime = state.lastBossDefeatedTime;
     if (bossWasDestroyed) {
-      newBossActive = false;
       newBossesDefeated = state.bossesDefeated + 1;
+    }
+    // bossActive remains true as long as at least one boss enemy is alive
+    const remainingBosses = enemies.filter((e) => e.isBoss && !destroyedEnemyIds.has(e.id));
+    const newBossActive = remainingBosses.length > 0;
+    if (state.bossActive && !newBossActive) {
+      // All bosses defeated this frame
       newLastBossDefeatedTime = currentTime;
     }
 
