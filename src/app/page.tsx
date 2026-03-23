@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useAccount, useConnect, useDisconnect, useWriteContract, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
+import { useAccount, useConnect, useDisconnect, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
 import { baseSepolia, base } from 'wagmi/chains';
 import { USE_TESTNET } from '@/lib/wagmi';
 import { useFarcaster } from '@/components/FarcasterSDK';
@@ -59,8 +59,8 @@ export default function Home() {
   const [showWalletOptions, setShowWalletOptions] = useState(false);
   const isSubmittingRef = useRef(false); // Prevent duplicate tx submissions
 
-  // Contract write for on-chain score submission
-  const { writeContract, data: txHash } = useWriteContract();
+  // Transaction for on-chain score submission (with ERC-8021 builder code)
+  const { sendTransaction, data: txHash } = useSendTransaction();
   const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
   });
@@ -153,19 +153,10 @@ export default function Home() {
       console.warn('Failed to switch chain:', error);
     }
 
-    writeContract({
-      address: LEADERBOARD_CONTRACT_ADDRESS,
-      abi: [
-        {
-          inputs: [{ name: 'score', type: 'uint256' }],
-          name: 'submitScore',
-          outputs: [],
-          stateMutability: 'nonpayable',
-          type: 'function',
-        },
-      ],
-      functionName: 'submitScore',
-      args: [BigInt(score)],
+    const tx = prepareSubmitScoreTransaction(score);
+    sendTransaction({
+      to: tx.to,
+      data: tx.data,
     });
   };
 
