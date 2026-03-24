@@ -2,10 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useAccount, useConnect, useDisconnect, useSendTransaction, useWaitForTransactionReceipt, useSwitchChain } from 'wagmi';
-import { baseSepolia, base } from 'wagmi/chains';
-import { USE_TESTNET } from '@/lib/wagmi';
-import { useFarcaster } from '@/components/FarcasterSDK';
+import { useAccount, useConnect, useDisconnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { useGameStore } from '@/lib/game-engine';
 import { GameUI, StartScreen, LeaderboardUI } from '@/components/game/GameUI';
 import { fetchQuickAssets, fetchAllTokens, generateDemoAssets } from '@/lib/wallet-assets';
@@ -35,11 +32,9 @@ const preloadTextures = async (imageUrls: string[]): Promise<void> => {
 };
 
 export default function Home() {
-  const { isInMiniApp, isLoading: farcasterLoading, user, provider } = useFarcaster();
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
-  const { switchChainAsync } = useSwitchChain();
 
   const {
     isPlaying,
@@ -47,7 +42,6 @@ export default function Home() {
     score,
     startGame,
     setWalletAssets,
-    setPlayerAvatar,
   } = useGameStore();
 
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
@@ -57,9 +51,8 @@ export default function Home() {
   const [leaderboardScores, setLeaderboardScores] = useState<LeaderboardEntry[]>([]);
   const [hasSubmittedScore, setHasSubmittedScore] = useState(false);
   const [showWalletOptions, setShowWalletOptions] = useState(false);
-  const isSubmittingRef = useRef(false); // Prevent duplicate tx submissions
+  const isSubmittingRef = useRef(false);
 
-  // Transaction for on-chain score submission (with ERC-8021 builder code)
   const { sendTransaction, data: txHash } = useSendTransaction();
   const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
     hash: txHash,
@@ -111,13 +104,6 @@ export default function Home() {
     }
   }, [address, setWalletAssets]);
 
-  // Set player avatar from Farcaster
-  useEffect(() => {
-    if (user?.pfpUrl) {
-      setPlayerAvatar(user.pfpUrl);
-    }
-  }, [user, setPlayerAvatar]);
-
   // Load leaderboard
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -144,14 +130,6 @@ export default function Home() {
     if (LEADERBOARD_CONTRACT_ADDRESS === '0x0000000000000000000000000000000000000000') return;
 
     isSubmittingRef.current = true;
-
-    try {
-      // Auto-switch to the correct chain before sending transaction
-      const targetChainId = USE_TESTNET ? baseSepolia.id : base.id;
-      await switchChainAsync({ chainId: targetChainId });
-    } catch (error) {
-      console.warn('Failed to switch chain:', error);
-    }
 
     const tx = prepareSubmitScoreTransaction(score);
     sendTransaction({
@@ -186,7 +164,7 @@ export default function Home() {
   // Get wallet display name
   const getWalletName = (id: string) => {
     switch (id) {
-      case 'injected': return isInMiniApp ? 'Farcaster Wallet' : 'Browser Wallet';
+      case 'injected': return 'Browser Wallet';
       case 'coinbaseWalletSDK': return 'Coinbase Wallet';
       case 'metaMaskSDK': return 'MetaMask';
       case 'walletConnect': return 'WalletConnect';
@@ -241,7 +219,7 @@ export default function Home() {
     }
   };
 
-  const isLoading = farcasterLoading || isLoadingAssets || isPreloadingImages;
+  const isLoading = isLoadingAssets || isPreloadingImages;
 
   return (
     <main className="w-screen h-screen overflow-hidden relative">
@@ -364,7 +342,7 @@ export default function Home() {
                     {connector.id === 'coinbaseWalletSDK' && '🔵'}
                     {connector.id === 'metaMaskSDK' && '🦊'}
                     {connector.id === 'walletConnect' && '🔗'}
-                    {connector.id === 'injected' && (isInMiniApp ? '🟣' : '💼')}
+                    {connector.id === 'injected' && '💼'}
                   </div>
                   <span>{getWalletName(connector.id)}</span>
                 </button>
@@ -382,39 +360,23 @@ export default function Home() {
       )}
 
 
-      {/* User info & connection status - combined top bar */}
-      {!isPlaying && (user || isConnected) && (
-        <div className="absolute top-4 left-4 right-4 game-panel text-xs flex items-center justify-between gap-2">
-          {/* Farcaster user info (left) */}
-          {user ? (
-            <div className="flex items-center gap-2 min-w-0">
-              {user.pfpUrl && (
-                <img src={user.pfpUrl} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
-              )}
-              <div className="min-w-0">
-                <div className="text-white truncate">{user.displayName || user.username}</div>
-                <div className="text-white/50 truncate">@{user.username}</div>
+      {/* Wallet connection status - top bar */}
+      {!isPlaying && isConnected && (
+        <div className="absolute top-4 left-4 right-4 game-panel text-xs flex items-center justify-end gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="text-right">
+              <div className="text-pop-green">Connected</div>
+              <div className="text-white/70 truncate max-w-[80px]">
+                {address?.slice(0, 6)}...{address?.slice(-4)}
               </div>
             </div>
-          ) : <div />}
-
-          {/* Wallet status (right) */}
-          {isConnected && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="text-right">
-                <div className="text-pop-green">Connected</div>
-                <div className="text-white/70 truncate max-w-[80px]">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
-                </div>
-              </div>
-              <button
-                onClick={() => disconnect()}
-                className="text-pop-red hover:underline"
-              >
-                ×
-              </button>
-            </div>
-          )}
+            <button
+              onClick={() => disconnect()}
+              className="text-pop-red hover:underline"
+            >
+              ×
+            </button>
+          </div>
         </div>
       )}
     </main>

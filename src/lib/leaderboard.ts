@@ -1,17 +1,8 @@
 import { createPublicClient, http, encodeFunctionData, type Address } from 'viem';
-import { base, baseSepolia } from 'viem/chains';
-import { USE_TESTNET } from './wagmi';
+import { base } from 'viem/chains';
 
-// Deployed contract addresses
-// Testnet (Base Sepolia) - update after deploying to testnet
-export const LEADERBOARD_CONTRACT_ADDRESS_TESTNET = '0x706D7aDC1ff32fEFbe70EF1Df2bA1d5777662E2C' as Address;
-// Mainnet (Base) - update after deploying to mainnet
-export const LEADERBOARD_CONTRACT_ADDRESS_MAINNET = '0x706D7aDC1ff32fEFbe70EF1Df2bA1d5777662E2C' as Address;
-
-// Use the appropriate address based on network
-export const LEADERBOARD_CONTRACT_ADDRESS = USE_TESTNET
-  ? LEADERBOARD_CONTRACT_ADDRESS_TESTNET
-  : LEADERBOARD_CONTRACT_ADDRESS_MAINNET;
+// Leaderboard contract address (Base mainnet)
+export const LEADERBOARD_CONTRACT_ADDRESS = '0x706D7aDC1ff32fEFbe70EF1Df2bA1d5777662E2C' as Address;
 
 // ABI for the leaderboard contract
 export const LEADERBOARD_ABI = [
@@ -63,7 +54,7 @@ export const LEADERBOARD_ABI = [
 ] as const;
 
 const publicClient = createPublicClient({
-  chain: USE_TESTNET ? baseSepolia : base,
+  chain: base,
   transport: http(),
 });
 
