@@ -1,10 +1,6 @@
-import { createPublicClient, http, encodeFunctionData, concatHex, type Address, type Hex } from 'viem';
+import { createPublicClient, http, encodeFunctionData, type Address } from 'viem';
 import { base, baseSepolia } from 'viem/chains';
 import { USE_TESTNET } from './wagmi';
-
-// ERC-8021 Builder Code suffix for Base attribution (bc_htswfkev)
-// Format: 0x + length byte + utf8(code) + 00 + 8021 padding
-export const BUILDER_CODE_SUFFIX: Hex = '0x0b62635f68747377666b65760080218021802180218021';
 
 // Deployed contract addresses
 // Testnet (Base Sepolia) - update after deploying to testnet
@@ -169,16 +165,16 @@ export async function getPlayerRank(address: string): Promise<number> {
   }
 }
 
-// Prepare transaction data for submitting score (with ERC-8021 builder code suffix)
+// Prepare transaction data for submitting score
+// ERC-8021 builder code suffix is automatically appended by wagmi dataSuffix config
 export function prepareSubmitScoreTransaction(score: number) {
-  const calldata = encodeFunctionData({
-    abi: LEADERBOARD_ABI,
-    functionName: 'submitScore',
-    args: [BigInt(score)],
-  });
   return {
     to: LEADERBOARD_CONTRACT_ADDRESS,
-    data: concatHex([calldata, BUILDER_CODE_SUFFIX]),
+    data: encodeFunctionData({
+      abi: LEADERBOARD_ABI,
+      functionName: 'submitScore',
+      args: [BigInt(score)],
+    }),
   };
 }
 
