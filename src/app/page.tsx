@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useAccount, useConnect, useDisconnect, useSendTransaction, useWaitForTransactionReceipt } from 'wagmi';
 import { useGameStore } from '@/lib/game-engine';
+import { useFarcasterMiniApp } from '@/lib/farcaster';
 import { GameUI, StartScreen, LeaderboardUI } from '@/components/game/GameUI';
 import { fetchQuickAssets, fetchAllTokens, generateDemoAssets } from '@/lib/wallet-assets';
 import type { WalletAsset } from '@/lib/game-types';
@@ -32,6 +33,7 @@ const preloadTextures = async (imageUrls: string[]): Promise<void> => {
 };
 
 export default function Home() {
+  const { isInMiniApp, isLoading: farcasterLoading, user: farcasterUser } = useFarcasterMiniApp();
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
@@ -42,6 +44,7 @@ export default function Home() {
     score,
     startGame,
     setWalletAssets,
+    setPlayerAvatar,
   } = useGameStore();
 
   const [isLoadingAssets, setIsLoadingAssets] = useState(false);
@@ -104,6 +107,13 @@ export default function Home() {
     }
   }, [address, setWalletAssets]);
 
+  // Set player avatar from Farcaster profile
+  useEffect(() => {
+    if (farcasterUser?.pfpUrl) {
+      setPlayerAvatar(farcasterUser.pfpUrl);
+    }
+  }, [farcasterUser, setPlayerAvatar]);
+
   // Load leaderboard
   useEffect(() => {
     const loadLeaderboard = async () => {
@@ -164,7 +174,7 @@ export default function Home() {
   // Get wallet display name
   const getWalletName = (id: string) => {
     switch (id) {
-      case 'injected': return 'Browser Wallet';
+      case 'injected': return isInMiniApp ? 'Farcaster Wallet' : 'Browser Wallet';
       case 'coinbaseWalletSDK': return 'Coinbase Wallet';
       case 'metaMaskSDK': return 'MetaMask';
       case 'walletConnect': return 'WalletConnect';
@@ -219,7 +229,7 @@ export default function Home() {
     }
   };
 
-  const isLoading = isLoadingAssets || isPreloadingImages;
+  const isLoading = farcasterLoading || isLoadingAssets || isPreloadingImages;
 
   return (
     <main className="w-screen h-screen overflow-hidden relative">
@@ -342,7 +352,7 @@ export default function Home() {
                     {connector.id === 'coinbaseWalletSDK' && '🔵'}
                     {connector.id === 'metaMaskSDK' && '🦊'}
                     {connector.id === 'walletConnect' && '🔗'}
-                    {connector.id === 'injected' && '💼'}
+                    {connector.id === 'injected' && (isInMiniApp ? '🟣' : '💼')}
                   </div>
                   <span>{getWalletName(connector.id)}</span>
                 </button>
@@ -360,23 +370,39 @@ export default function Home() {
       )}
 
 
-      {/* Wallet connection status - top bar */}
-      {!isPlaying && isConnected && (
-        <div className="absolute top-4 left-4 right-4 game-panel text-xs flex items-center justify-end gap-2">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <div className="text-right">
-              <div className="text-pop-green">Connected</div>
-              <div className="text-white/70 truncate max-w-[80px]">
-                {address?.slice(0, 6)}...{address?.slice(-4)}
+      {/* User info & connection status - top bar */}
+      {!isPlaying && (farcasterUser || isConnected) && (
+        <div className="absolute top-4 left-4 right-4 game-panel text-xs flex items-center justify-between gap-2">
+          {/* Farcaster user info (left) */}
+          {farcasterUser ? (
+            <div className="flex items-center gap-2 min-w-0">
+              {farcasterUser.pfpUrl && (
+                <img src={farcasterUser.pfpUrl} alt="" className="w-7 h-7 rounded-full flex-shrink-0" />
+              )}
+              <div className="min-w-0">
+                <div className="text-white truncate">{farcasterUser.displayName || farcasterUser.username}</div>
+                <div className="text-white/50 truncate">@{farcasterUser.username}</div>
               </div>
             </div>
-            <button
-              onClick={() => disconnect()}
-              className="text-pop-red hover:underline"
-            >
-              ×
-            </button>
-          </div>
+          ) : <div />}
+
+          {/* Wallet status (right) */}
+          {isConnected && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="text-right">
+                <div className="text-pop-green">Connected</div>
+                <div className="text-white/70 truncate max-w-[80px]">
+                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                </div>
+              </div>
+              <button
+                onClick={() => disconnect()}
+                className="text-pop-red hover:underline"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       )}
     </main>
