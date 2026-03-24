@@ -1,5 +1,11 @@
-import { createPublicClient, http, encodeFunctionData, type Address } from 'viem';
+import { createPublicClient, http, encodeFunctionData, concatHex, type Address, type Hex } from 'viem';
 import { base } from 'viem/chains';
+import { Attribution } from 'ox/erc8021';
+
+// ERC-8021 Builder Code suffix for Base attribution (bc_htswfkev)
+export const BUILDER_CODE_SUFFIX = Attribution.toDataSuffix({
+  codes: ['bc_htswfkev'],
+}) as Hex;
 
 // Leaderboard contract address (Base mainnet)
 export const LEADERBOARD_CONTRACT_ADDRESS = '0x706D7aDC1ff32fEFbe70EF1Df2bA1d5777662E2C' as Address;
@@ -156,16 +162,16 @@ export async function getPlayerRank(address: string): Promise<number> {
   }
 }
 
-// Prepare transaction data for submitting score
-// ERC-8021 builder code suffix is automatically appended by wagmi dataSuffix config
+// Prepare transaction data for submitting score (with ERC-8021 builder code suffix)
 export function prepareSubmitScoreTransaction(score: number) {
+  const calldata = encodeFunctionData({
+    abi: LEADERBOARD_ABI,
+    functionName: 'submitScore',
+    args: [BigInt(score)],
+  });
   return {
     to: LEADERBOARD_CONTRACT_ADDRESS,
-    data: encodeFunctionData({
-      abi: LEADERBOARD_ABI,
-      functionName: 'submitScore',
-      args: [BigInt(score)],
-    }),
+    data: concatHex([calldata, BUILDER_CODE_SUFFIX]),
   };
 }
 
